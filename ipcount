@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl5_latest -w
+#!/usr/local/bin/perl5.6.0 -w
 
 # Copyright (c) 2000                            RIPE NCC
 #
@@ -35,7 +35,7 @@
 # Problems          :
 # To Do             :
 # Comments          : 
-# $Id: ipcount.pl,v 1.3 2000/11/30 10:06:02 manuel Exp $
+# $Id: ipcount,v 1.1 2001/04/04 11:12:33 manuel Exp $
 #------------------------------------------------------------------------------
 
 use Net::IP qw(:PROC);
@@ -61,9 +61,7 @@ if ($arg =~ m!^(.+?)\+(.+)$!)
 	my $end_bin = ip_binadd ($ip->binip(),$addnum) or die (Error());
 	
 	my $end = ip_bintoip ($end_bin,$ip->version()) or die (Error());
-		
-	print ($ip->ip().'-'.$end,$ip->version()."\n");
-	
+			
 	$ip->set($ip->ip().'-'.$end,$ip->version()) or die($ip->error());
 }
 else

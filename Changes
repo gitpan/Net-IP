@@ -1,5 +1,14 @@
 Revision history for Perl extension Net::IP.
 
+1.01  Thu Feb 01 10:46:09 2001
+	- added option to create multi-prefix ranges (/16,/17)
+	- added a check on validity of prefixes
+	- overlaps function rewritten - bugfix
+	- added print() function
+	
+1.00  Thu Jan 18 15:00:00 2001
+	- First Release 
+
 0.01  Mon Nov  6 16:24:05 2000
 	- original version; created by h2xs 1.18
 

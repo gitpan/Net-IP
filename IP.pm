@@ -34,7 +34,7 @@
 # To Do             :
 # Comments          : Based on ipv4pack.pm (Monica) and iplib.pm (Lee)
 #                     Math::BigInt is only loaded if int functions are used
-# $Id: IP.pm,v 1.9 2001/01/10 16:31:08 manuel Exp $
+# $Id: IP.pm,v 1.12 2001/04/04 11:12:17 manuel Exp $
 #------------------------------------------------------------------------------
 
 package Net::IP;
@@ -43,7 +43,7 @@ use strict;
 
 # Global Variables definition
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $ERROR $ERRNO 
-	%IPv4ranges %IPv6ranges %IPLengths $useBigInt
+	%IPv4ranges %IPv6ranges $useBigInt
 	$IP_NO_OVERLAP $IP_PARTIAL_OVERLAP $IP_A_IN_B_OVERLAP $IP_B_IN_A_OVERLAP $IP_IDENTICAL);
 
 require Exporter;
@@ -60,14 +60,14 @@ require Exporter;
 	&ip_is_valid_mask &ip_bincomp &ip_binadd &ip_get_prefix_length 
 	&ip_range_to_prefix &ip_compress_address &ip_is_overlap 
 	&ip_get_embedded_ipv4 &ip_aggregate &ip_iptype &ip_check_prefix 
-	&ip_reverse &ip_normalize &ip_normal_range
+	&ip_reverse &ip_normalize &ip_normal_range &ip_iplengths
 	$IP_NO_OVERLAP $IP_PARTIAL_OVERLAP $IP_A_IN_B_OVERLAP $IP_B_IN_A_OVERLAP $IP_IDENTICAL);
 
 %EXPORT_TAGS = (
 	PROC => [@EXPORT_OK],
       );
 
-$VERSION = '1.0';
+$VERSION = '1.10';
 
 # Definition of the Ranges for IPv4 IPs
 %IPv4ranges = (
@@ -121,10 +121,12 @@ $VERSION = '1.0';
 );
 
 # Overlap constants
-($IP_NO_OVERLAP,$IP_PARTIAL_OVERLAP,$IP_A_IN_B_OVERLAP,$IP_B_IN_A_OVERLAP,$IP_IDENTICAL) = (0,1,-1,-2,-3);
+$IP_NO_OVERLAP = 	 0;
+$IP_PARTIAL_OVERLAP = 	 1;
+$IP_A_IN_B_OVERLAP = 	-1;
+$IP_B_IN_A_OVERLAP = 	-2;
+$IP_IDENTICAL = 	-3;
 
-# Number of bits for each IP version 
-%IPLengths = ( 4 => 32 , 6 => 128);
 
 # -----------------------------------------------------------------------------
 
@@ -144,7 +146,7 @@ sub new
 	bless ($self,$class);
 
 	# Pass everything to set()		
-	$self->set ($data, $ipversion) or return;
+	return unless ($self->set ($data, $ipversion));
 			
 	return $self;
 };
@@ -178,13 +180,13 @@ sub set
 	};
 	
 	# Determine IP version for this object		
-	$self->{ipversion} = $ipversion || ip_get_version($begin) || return;
+	return unless ($self->{ipversion} = $ipversion || ip_get_version($begin));
 
 	# Set begin IP address	
 	$self->{ip} = $begin;
 	
 	# Set Binary IP address
-	$self->{binip} = ip_iptobin ($self->ip(),$self->version()) or return;
+	return unless ($self->{binip} = ip_iptobin ($self->ip(),$self->version()));
 		
 	$self->{is_prefix} = 0;
 	
@@ -204,12 +206,12 @@ sub set
 		$self->{error} = $ERROR;
 		return;
 	};
-	
+		
 	# Get last binary address	
-	$self->{last_bin} = ip_iptobin ($self->last_ip(),$self->version()) or return;
+	return unless ($self->{last_bin} = ip_iptobin ($self->last_ip(),$self->version()));
 
 	# Check that End IP >= Begin IP
-	ip_bincomp ($self->binip(),'lte',$self->last_bin()) or do
+	unless (ip_bincomp ($self->binip(),'le',$self->last_bin()))
 	{
 		$ERRNO = 202;
 		$ERROR = "Begin address is greater than End address $begin - $end";
@@ -225,7 +227,7 @@ sub set
 	if (scalar(@prefixes)==1) 
 	{	
 		# Get length of prefix		
-		(undef,$self->{prefixlen}) = ip_splitprefix($prefixes[0]) or return;
+		return unless ((undef,$self->{prefixlen}) = ip_splitprefix($prefixes[0]));
 		
 		# Set prefix boolean var
 		# This value is 1 if the IP range only contains a single /nn prefix
@@ -249,6 +251,20 @@ sub set
 		
 	return (1);
 };	
+
+sub print
+{
+	my $self = shift;
+	
+	if ($self->{is_prefix})
+	{
+		return (sprintf ("%s/%s",$self->ip(),$self->prefixlen()));
+	}
+	else
+	{
+		return (sprintf ("%s - %s",$self->ip(),$self->last_ip()));
+	};		
+};
 
 #------------------------------------------------------------------------------
 # Subroutine error
@@ -340,7 +356,7 @@ sub size
 	
 	if ($self->is_prefix()) {
 		# Size is 2 ^^ (number_of_bits_in_IP - actual_number_of_bits)
-		return (2**($IPLengths{$self->{ipversion}} - $self->{prefixlen}));
+		return (2**(ip_iplengths($self->{ipversion}) - $self->{prefixlen}));
 	};
 		
 	my $compl;
@@ -353,13 +369,13 @@ sub size
 		
 	my $one = ('0' x (length($compl)-1)).'1';
 	
-	$compl = ip_binadd ($compl,$one) or return;
+	return unless ($compl = ip_binadd ($compl,$one));
 	
 	# Add complemented IP to final IP (same as substraction)
 	my $result = ip_binadd ($self->last_bin(),$compl) or return;
 	
 	# Transform into integer
-	$result = ip_bintoint ($result,$self->version()) or return;
+	return unless ($result = ip_bintoint ($result,$self->version()));
 			
 	return ($result + 1);
 };
@@ -616,7 +632,7 @@ sub find_prefixes
 # Purpose           : Compare two IPs
 # Params            : Operation, IP to compare
 # Returns           : 1 (True), 0 (False) or undef (problem)
-# Comments          : Operation can be lt, lte, gt, gte
+# Comments          : Operation can be lt, le, gt, ge
 sub bincomp
 {
 	my ($self,$op,$other) = @_;
@@ -682,11 +698,13 @@ sub aggregate
 # Subroutine overlaps
 # Purpose           : Check if two prefixes overlap
 # Params            : Prefix to compare
-# Returns           : 0 (no overlap)
-#                     1 (overlap)
-#                    -1 (range2 is included in range1)
-#                    -2 (range1 is included in range2) 
-#                       or undef (problem)
+# Returns           : $NO_OVERLAP         (no overlap)
+#                     $IP_PARTIAL_OVERLAP (overlap)
+#                     $IP_A_IN_B_OVERLAP  (range2 is included in range1)
+#                     $IP_B_IN_A_OVERLAP  (range1 is included in range2)
+#                     $IP_IDENTICAL       (range1 == range2) 
+#                     or undef (problem)
+
 sub overlaps
 {
 	my ($self,$other) = @_;
@@ -724,6 +742,31 @@ sub Errno
 };
 
 #------------------------------------------------------------------------------
+# Subroutine ip_iplengths
+# Purpose           : Get the length in bits of an IP from its version
+# Params            : IP version
+# Returns           : Number of bits
+
+sub ip_iplengths
+{
+	my ($version) = @_;
+	
+	if ($version == 4)
+	{
+		return (32);
+	}
+	elsif ($version == 6)
+	{
+		return (128);
+	}
+	else
+	{
+		return;
+	};
+};
+
+
+#------------------------------------------------------------------------------
 # Subroutine ip_iptobin
 # Purpose           : Transform an IP address into a bit string
 # Params            : IP address, IP version
@@ -742,7 +785,7 @@ sub ip_iptobin
 	$ip =~ s/://g;
 	
 	# Check size
-	length ($ip) == 32 or do
+	unless (length ($ip) == 32)
 	{
 		$ERROR = "Bad IP address $ip";
 		$ERRNO = 102;
@@ -763,14 +806,23 @@ sub ip_bintoip
 	my ($binip,$ip_version) = @_;
 
 	# Define normal size for address
-	my $len = $IPLengths{$ip_version};
+	my $len = ip_iplengths($ip_version);
+	
+	if ($len < length($binip))
+	{
+		$ERROR = "Invalid IP length for binary IP $binip\n";
+		$ERRNO = 189;
+		return;
+	};
 	
 	# Prepend 0s if address is less than normal size
 	$binip = '0'x($len-length($binip)).$binip;
 	
 	# IPv4
-	$ip_version == 4 and 
+	if ($ip_version == 4)
+	{
 		return join '.', unpack( 'C4C4C4C4', pack( 'B32', $binip ));
+	};
 	
 	# IPv6
 	return join (':', unpack( 'H4H4H4H4H4H4H4H4', pack( 'B128', $binip )));
@@ -818,7 +870,7 @@ sub ip_inttobin
 	# Find IP version
 	my $ip_version = shift;
 	
-	$ip_version or do
+	unless ($ip_version)
 	{
 		$ERROR = "Cannot determine IP version for $dec";
 		$ERRNO = 101;
@@ -826,7 +878,7 @@ sub ip_inttobin
 	};
 	
 	# Number of bits depends on IP version
-	my $maxn = $IPLengths{$ip_version};
+	my $maxn = ip_iplengths($ip_version);
 	
 	my ($n, $binip);
 	
@@ -880,21 +932,21 @@ sub ip_is_ipv4
 	my $ip = shift;
 	
 	# Check for invalid chars
-	$ip =~ m/^[\d\.]+$/ or do
+	unless ($ip =~ m/^[\d\.]+$/)
 	{
 		$ERROR = "Invalid chars in IP $ip";
 		$ERRNO = 107;
 		return 0;
 	};		
 	
-	$ip =~ m/^\./ and do
+	if ($ip =~ m/^\./)
 	{
 		$ERROR = "Invalid IP $ip - starts with a dot";
 		$ERRNO = 103;
 		return 0;
 	};
 	
-	$ip =~ m/\.$/ and do
+	if ($ip =~ m/\.$/)
 	{
 		$ERROR = "Invalid IP $ip - ends with a dot";
 		$ERRNO = 104;
@@ -908,7 +960,7 @@ sub ip_is_ipv4
 	my $n = ($ip =~ tr/\./\./);
 
 	# IPv4 must have from 1 to 4 quads
-	($n >= 0 and $n < 4) or do
+	unless ($n >= 0 and $n < 4)
 	{
 		$ERROR = "Invalid IP address $ip";
 		$ERRNO = 105;
@@ -916,7 +968,7 @@ sub ip_is_ipv4
 	};
 
 	# Check for empty quads
-	$ip =~ m/\.\./ and do
+	if ($ip =~ m/\.\./)
 	{
 		$ERROR = "Empty quad in IP address $ip";
 		$ERRNO = 106;
@@ -926,7 +978,7 @@ sub ip_is_ipv4
 	foreach (split /\./,$ip)
 	{
 		# Check for invalid quads
-		($_ >= 0 and $_ < 256) or do
+		unless ($_ >= 0 and $_ < 256)
 		{
 			$ERROR = "Invalid quad in IP address $ip - $_";
 			$ERRNO = 107;
@@ -947,7 +999,7 @@ sub ip_is_ipv6
 	
 	# Count octets
 	my $n = ($ip =~ tr/:/:/);
-	($n > 0 and $n < 8) or return 0;
+	return (0) unless ($n > 0 and $n < 8);
 	
 	# $k is a counter
 	my $k;
@@ -956,13 +1008,13 @@ sub ip_is_ipv6
 	{
 		$k++;
 		# Empty octet ?
-		$_ eq '' and next;
+		next if ($_ eq '');
 		# Normal v6 octet ?
-		/^[a-f\d]{1,4}$/i and next;
+		next if (/^[a-f\d]{1,4}$/i);
 		# Last octet - is it IPv4 ?
-		($k == $n+1) and do
+		if ($k == $n+1)
 		{
-			ip_is_ipv4($_) and next;
+			next if (ip_is_ipv4($_));
 		};
 		
 		$ERROR = "Invalid IP address $ip";
@@ -972,7 +1024,7 @@ sub ip_is_ipv6
 
 		
 	# Does the IP address start with : ?
-	$ip =~ m/^:[^:]/ and do
+	if ($ip =~ m/^:[^:]/)
 	{
 		$ERROR = "Invalid address $ip (starts with :)";
 		$ERRNO = 109;
@@ -980,7 +1032,7 @@ sub ip_is_ipv6
 	};
 	
 	# Does the IP address finish with : ?	
-	$ip =~ m/[^:]:$/ and do
+	if ($ip =~ m/[^:]:$/)
 	{
 		$ERROR = "Invalid address $ip (ends with :)";
 		$ERRNO = 110;
@@ -988,7 +1040,7 @@ sub ip_is_ipv6
 	};
 	
 	# Does the IP address have more than one '::' pattern ?
-	$ip =~ s/:(?=:)//g > 1 and do
+	if ($ip =~ s/:(?=:)//g > 1)
 	{
 		$ERROR = "Invalid address $ip (More than one :: pattern)";
 		$ERRNO = 111;
@@ -1007,7 +1059,7 @@ sub ip_expand_address
 {
 	my ($ip,$ip_version) = @_;
 		
-	$ip_version or do
+	unless ($ip_version)
 	{
 		$ERROR = "Cannot determine IP version for $ip";
 		$ERRNO = 101;
@@ -1015,7 +1067,7 @@ sub ip_expand_address
 	};
 	
 	# v4 : add .0 for missing quads
-	$ip_version == 4 and do
+	if ($ip_version == 4)
 	{
 		my $n = ($ip =~ tr/\./\./);
 		return ($ip.('.0'x(3-$n)));
@@ -1033,7 +1085,7 @@ sub ip_expand_address
 	foreach (0..(scalar(@ip)-1))
 	{
 		# Embedded IPv4
-		$ip[$_] =~ /\./ and do
+		if ($ip[$_] =~ /\./)
 		{
 			# Expand Ipv4 address
 			# Convert into binary
@@ -1044,7 +1096,7 @@ sub ip_expand_address
 			ip_bintoip(ip_iptobin(ip_expand_address($ip[$_],4),4),6),-9);
 			
 			# Has an error occured here ?
-			defined ($ip[$_]) or return;
+			return unless (defined ($ip[$_]));
 			
 			# $num++ because we now have one more octet:
 			# IPv4 address becomes two octets
@@ -1060,7 +1112,7 @@ sub ip_expand_address
 	foreach (0..(scalar(@ip)-1))
 	{	
 		# Find the pattern
-		$ip[$_] eq '000!' or next;
+		next unless ($ip[$_] eq '000!');
 		
 		# @empty is the IP address 0
 		my @empty = map { $_ = '0'x4 } (0..7);
@@ -1082,14 +1134,14 @@ sub ip_get_mask
 {
 	my ($len,$ip_version) = @_;
 	
-	$ip_version or do
+	unless ($ip_version)
 	{
 		$ERROR = "Cannot determine IP version";
 		$ERRNO = 101;
 		return;
 	};	
 
-	my $size = $IPLengths{$ip_version};
+	my $size = ip_iplengths($ip_version);
 
 	# mask is $len 1s plus the rest as 0s
 	return (('1'x$len).('0'x($size - $len)));
@@ -1104,14 +1156,14 @@ sub ip_last_address_bin
 {
 	my ($binip, $len, $ip_version) = @_;
 	
-	$ip_version or do
+	unless ($ip_version)
 	{
 		$ERROR = "Cannot determine IP version";
 		$ERRNO = 101;
 		return;
 	};	
 
-	my $size = $IPLengths{$ip_version};
+	my $size = ip_iplengths($ip_version);
 
 	# Find the part of the IP address which will not be modified
 	$binip = substr ($binip,0,$len);
@@ -1131,7 +1183,7 @@ sub ip_splitprefix
 	my $prefix = shift;
 
 	# Find the '/'
-	$prefix =~ m!^([^/]+?)(/\d+)?$! or return;
+	return unless ($prefix =~ m!^([^/]+?)(/\d+)?$!);
 	
 	my ($ip,$len) = ($1,$2);
 
@@ -1149,7 +1201,7 @@ sub ip_prefix_to_range
 {
 	my ($ip,$len,$ip_version) = @_;
 			
-	$ip_version or do
+	unless ($ip_version)
 	{
 		$ERROR = "Cannot determine IP version";
 		$ERRNO = 101;
@@ -1164,10 +1216,10 @@ sub ip_prefix_to_range
 	# Turn into an IP	
 	my $binip = ip_iptobin ($ip,$ip_version) or return;
 	
-	ip_check_prefix($binip,$len,$ip_version) or return;
+	return unless (ip_check_prefix($binip,$len,$ip_version));
 	
 	my $lastip = ip_last_address_bin ($binip,$len,$ip_version) or return;
-	$lastip = ip_bintoip ($lastip,$ip_version) or return;
+	return unless ($lastip = ip_bintoip ($lastip,$ip_version));
 		
 	return ($ip, $lastip);
 };
@@ -1181,23 +1233,24 @@ sub ip_is_valid_mask
 {
 	my ($mask,$ip_version) = @_;
 	
-	$ip_version or do
+	unless ($ip_version)
 	{
 		$ERROR = "Cannot determine IP version for $mask";
 		$ERRNO = 101;
 		return;
 	};
 	
-	my $len = $IPLengths{$ip_version};
+	my $len = ip_iplengths($ip_version);
 		
-	length ($mask) != $len and do
+	if (length ($mask) != $len)
 	{
 		$ERROR = "Invalid mask length for $mask";
 		$ERRNO = 150;
 		return;
 	};
 	
-	$mask =~ m/^1*0*$/ or do
+	# The mask should be of the form 111110000000
+	unless ($mask =~ m/^1*0*$/)
 	{
 		$ERROR = "Invalid mask $mask";
 		$ERRNO = 151;
@@ -1211,21 +1264,35 @@ sub ip_is_valid_mask
 #------------------------------------------------------------------------------
 # Subroutine ip_bincomp
 # Purpose           : Compare binary Ips with <, >, <=, >=
-# Comments          : Operators are lt(<), lte(<=), gt(>), and gte(>=) 
+# Comments          : Operators are lt(<), le(<=), gt(>), and ge(>=) 
 # Params            : First binary IP, operator, Last binary Ip
 # Returns           : 1 (yes), 0 (no), or undef (problem)
 sub ip_bincomp
 {
 	my ($begin,$op,$end) = @_;
+		
+	my ($b,$e);
 	
-	# lte or gte -> return 1 if IPs are identical
-	$op =~ /e/ and ($begin eq $end) and return 1;
+	if ($op =~ /^l[te]$/) # Operator is lt or le
+	{
+		($b,$e) = ($end,$begin);
+	}
+	elsif ($op =~ /^g[te]$/) # Operator is gt or ge
+	{
+		($b,$e) = ($begin,$end);
+	}
+	else
+	{
+		$ERROR = "Invalid Operator $op\n";
+		$ERRNO = 131;
+		return;
+	};
 	
-	# Invert comparaison for gt
-	my ($b,$e) = $op =~ /gt/ ? ($begin,$end) : ($end,$begin);
-
+	# le or ge -> return 1 if IPs are identical
+	return (1) if ($op =~ /e/ and ($begin eq $end));	
+	
 	# Check IP sizes
-	length ($b) eq length ($e) or do
+	unless (length ($b) eq length ($e))
 	{
 		$ERROR = "IP addresses of different length\n";
 		$ERRNO = 130;
@@ -1240,8 +1307,8 @@ sub ip_bincomp
 		# substract the two bits
 		$c = substr ($b,$_,1) - substr ($e,$_,1);
 		# Check the result		
-		$c ==  1 and return 1;
-		$c == -1 and return 0;
+		return (1) if ($c ==  1);
+		return (0) if ($c == -1);
 	};
 	
 	# IPs are identical
@@ -1258,7 +1325,7 @@ sub ip_binadd
 	my ($b,$e) = @_;
 
 	# Check IP length
-	length ($b) eq length ($e) or do
+	unless (length ($b) eq length ($e))
 	{
 		$ERROR = "IP addresses of different length\n";
 		$ERRNO = 130;
@@ -1282,7 +1349,7 @@ sub ip_binadd
 		# sum = 1 => $c = 1, $carry = 0
 		# sum = 2 => $c = 0, $carry = 1
 		# sum = 3 => $c = 1, $carry = 1
-		$c > 1 and do
+		if ($c > 1)
 		{
 			$c -= 2;
 			$carry = 1;
@@ -1305,7 +1372,7 @@ sub ip_get_prefix_length
 	my ($bin1,$bin2) = @_;
 	
 	# Check length of IPs
-	length ($bin1) eq length ($bin2) or do
+	unless (length ($bin1) eq length ($bin2))
 	{
 		$ERROR = "IP addresses of different length\n";
 		$ERRNO = 130;
@@ -1320,7 +1387,7 @@ sub ip_get_prefix_length
 	for (0..length($bin1)-1)
 	{
 		# If bits are equal it means we have reached the longest prefix
-		substr ($bin1,$_,1) eq substr ($bin2,$_,1) and return "$_";
+		return ("$_") if (substr ($bin1,$_,1) eq substr ($bin2,$_,1));
 		
 	};
 	# Return 32 (IPv4) or 128 (IPv6)
@@ -1336,14 +1403,14 @@ sub ip_range_to_prefix
 {
 	my ($binip,$endbinip,$ip_version) = @_;
 		
-	$ip_version or do
+	unless ($ip_version)
 	{
 		$ERROR = "Cannot determine IP version";
 		$ERRNO = 101;
 		return;
 	};
 	
-	length ($binip) eq length ($endbinip) or do
+	unless (length ($binip) eq length ($endbinip))
 	{
 		$ERROR = "IP addresses of different length\n";
 		$ERRNO = 130;
@@ -1353,10 +1420,10 @@ sub ip_range_to_prefix
 	my ($len,$nbits,$current,$add,@prefix);
 
 	# 1 in binary
-	my $one = ('0'x($IPLengths{$ip_version} - 1)).'1';
+	my $one = ('0'x(ip_iplengths($ip_version) - 1)).'1';
 
 	# While we have not reached the last IP
-	while (ip_bincomp ($binip,'lte',$endbinip) == 1)
+	while (ip_bincomp ($binip,'le',$endbinip) == 1)
 	{
 		# Find all 0s at the end
 		$binip =~ m/(0+)$/;
@@ -1371,10 +1438,10 @@ sub ip_range_to_prefix
 			$current =~ s/0{$nbits}$/$add/;
 			$nbits--;
 			# Decrease $nbits if $current >= $endbinip
-		} while (ip_bincomp ($current,'lte',$endbinip) != 1);
+		} while (ip_bincomp ($current,'le',$endbinip) != 1);
 		
 		# Find Prefix length				
-		$len = ($IPLengths{$ip_version}) - 
+		$len = (ip_iplengths($ip_version)) - 
 			ip_get_prefix_length ($binip,$current);
 		
 		# Push prefix in list
@@ -1384,7 +1451,7 @@ sub ip_range_to_prefix
 		$binip = ip_binadd ($current,$one);
 		
 		# Exit if IP is 32/128 1s
-		$current =~ m/^1+$/ and last;
+		last if ($current =~ m/^1+$/);
 	};
 
 	return (@prefix);
@@ -1399,7 +1466,7 @@ sub ip_compress_address
 {
 	my ($ip,$ip_version) = @_;
 	
-	$ip_version or do
+	unless ($ip_version)
 	{
 		$ERROR = "Cannot determine IP version for $ip";
 		$ERRNO = 101;
@@ -1407,7 +1474,7 @@ sub ip_compress_address
 	};
 	
 	# Just return if IP is IPv4
-	$ip_version == 4 and return $ip;
+	return ($ip) if ($ip_version == 4);
 
 	# Remove leading 0s: 0034 -> 34; 0000 -> 0
 	$ip =~ s/
@@ -1427,11 +1494,11 @@ sub ip_compress_address
 	(?::|$))     # ':' or end
 	/gx)
 	{
-		length ($reg) < length ($1) and $reg = $1; 
+		$reg = $1 if (length ($reg) < length ($1)); 
 	};
 	
 	# Replace sequence by '::'
-	$reg ne '' and $ip =~ s/$reg/::/;
+	$ip =~ s/$reg/::/ if ($reg ne '');
 	
 	return $ip;
 };
@@ -1440,11 +1507,12 @@ sub ip_compress_address
 # Subroutine ip_is_overlap
 # Purpose           : Check if two ranges overlap
 # Params            : Four binary IPs (begin of range 1,end1,begin2,end2)
-# Returns           : $NO_OVERLAP (no overlap)
+# Returns           : $NO_OVERLAP         (no overlap)
 #                     $IP_PARTIAL_OVERLAP (overlap)
-#                     $IP_A_IN_B_OVERLAP (range2 is included in range1)
-#                     $IP_B_IN_A_OVERLAP (range1 is included in range2) 
-#                       or undef (problem)
+#                     $IP_A_IN_B_OVERLAP  (range2 is included in range1)
+#                     $IP_B_IN_A_OVERLAP  (range1 is included in range2)
+#                     $IP_IDENTICAL       (range1 == range2) 
+#                     or undef (problem)
 
 sub ip_is_overlap
 {
@@ -1453,56 +1521,73 @@ sub ip_is_overlap
 	my $swap;
 	$swap = 0;
 	
-	((length ($b1) eq length ($e1)) 
+	unless ((length ($b1) eq length ($e1)) 
 		and (length ($b2) eq length ($e2))
-		and (length ($b1) eq length ($b2))) or do
+		and (length ($b1) eq length ($b2)))
 	{
 		$ERROR = "IP addresses of different length\n";
 		$ERRNO = 130;
 		return;
 	};
-	
-	($b1 eq $b2 and $e1 eq $e2) and return ($IP_IDENTICAL);
-		
-	# begin1 < end1 ?
-	ip_bincomp ($b1,'lte',$e1) == 1 or do
+			
+	# begin1 <= end1 ?
+	unless (ip_bincomp ($b1,'le',$e1) == 1)
 	{
 		$ERROR = "Invalid range	$b1 - $e1";
 		$ERRNO = 140;
 		return;
 	};
 	
-	# begin2 < end2 ?
-	ip_bincomp ($b2,'lte',$e2) == 1 or do
+	# begin2 <= end2 ?
+	unless (ip_bincomp ($b2,'le',$e2) == 1)
 	{
 		$ERROR = "Invalid range	$b2 - $e2";
 		$ERRNO = 140;
 		return;
 	};
 	
-	my ($begin1,$end1,$begin2,$end2);
+	# b1 == b2 ?	
+	if ($b1 eq $b2)
+	{
+		# e1 == e2	
+		return ($IP_IDENTICAL) if ($e1 eq $e2); 
 	
-	# Exchange ranges if range2 < range1
-	if (ip_bincomp ($b1,'lte',$b2) == 1)
-	{
-		($begin1,$end1,$begin2,$end2) = ($b1,$e1,$b2,$e2);
-	}
-	else
-	{
-		$swap = 1;
-		($begin1,$end1,$begin2,$end2) = ($b2,$e2,$b1,$e1);	
+		# e1 < e2 ?
+		return (ip_bincomp($e1,'lt',$e2) ? 
+			$IP_A_IN_B_OVERLAP:
+			$IP_B_IN_A_OVERLAP);
 	};
 
-	# end2 < end1 => range2 included in range1 (or reverse, with swap)
-	ip_bincomp ($end2,'lte',$end1)  == 1 and
-		return ($swap ? $IP_A_IN_B_OVERLAP : $IP_B_IN_A_OVERLAP);
+	# e1 == e2 ?	
+	if ($e1 eq $e2)
+	{
+		# b1 < b2
+		return (ip_bincomp($b1,'lt',$b2) ? 
+			$IP_B_IN_A_OVERLAP:
+			$IP_A_IN_B_OVERLAP);
+	};
+	
+	# b1 < b2
+	if ((ip_bincomp ($b1,'lt',$b2) == 1))
+	{
+		# e1 < b2
+		return ($IP_NO_OVERLAP) if (ip_bincomp($e1,'lt',$b2)==1);		
+	
+		# e1 < e2 ?
+		return (ip_bincomp($e1,'lt',$e2) ? 
+			$IP_PARTIAL_OVERLAP:
+			$IP_B_IN_A_OVERLAP);
+	}
+	else # b1 > b2
+	{
+		# e2 < b1
+		return ($IP_NO_OVERLAP) if (ip_bincomp($e2,'lt',$b1)==1);
 		
-	
-	# end1 < begin2 => no overlap
-	ip_bincomp ($end1,'lt',$begin2) == 1 and return ($IP_NO_OVERLAP);
-	
-	# Overlap
-	return $IP_PARTIAL_OVERLAP;
+		# e2 < e1 ?
+		return (ip_bincomp($e2,'lt',$e1) ? 
+			$IP_PARTIAL_OVERLAP:
+			$IP_A_IN_B_OVERLAP);
+	};		
 };
 
 #------------------------------------------------------------------------------
@@ -1516,8 +1601,11 @@ sub ip_get_embedded_ipv4
 	
 	my @ip = split /:/,$ipv6;
 	
+	# Bugfix by Norbert Koch
+	return unless (@ip);
+	
 	# last octet should be ipv4
-	ip_is_ipv4($ip[$#ip]) and return $ip[$#ip];
+	return ($ip[-1]) if (ip_is_ipv4($ip[-1]));
 	
 	return;
 };
@@ -1533,7 +1621,7 @@ sub ip_aggregate
 {
 	my ($binbip1,$bineip1,$binbip2,$bineip2,$ip_version) = @_;
 	
-	$ip_version or do
+	unless ($ip_version)
 	{
 		$ERROR = "Cannot determine IP version for $binbip1";
 		$ERRNO = 101;
@@ -1541,10 +1629,10 @@ sub ip_aggregate
 	};
 
 	# Bin 1
-	my $one = (('0'x($IPLengths{$ip_version} - 1)).'1');
+	my $one = (('0'x(ip_iplengths($ip_version) - 1)).'1');
 	
 	# $eip1 + 1 = $bip2 ?
-	ip_binadd ($bineip1,$one) eq $binbip2 or do
+	unless (ip_binadd ($bineip1,$one) eq $binbip2)
 	{
 		$ERROR = "Ranges not contiguous - $bineip1 - $binbip2";
 		$ERRNO = 160;
@@ -1555,8 +1643,9 @@ sub ip_aggregate
 	my @prefix = ip_range_to_prefix ($binbip1,$bineip2,$ip_version);
 	
 	# There should be only one range
-	scalar (@prefix) < 1 and return;
-	scalar (@prefix) > 1 and do
+	return if scalar (@prefix) < 1;
+	
+	if (scalar (@prefix) > 1)
 	{
 		$ERROR = "$binbip1 - $bineip2 is not a single prefix";
 		$ERRNO = 161;
@@ -1581,7 +1670,7 @@ sub ip_iptype
 	{
 		foreach ( sort { length($b) <=> length($a) } keys %IPv4ranges)
 		{
-			$ip =~ m/^$_/ and return $IPv4ranges{$_};
+			return ($IPv4ranges{$_}) if ($ip =~ m/^$_/);
 		};
 	
 		# IP is public
@@ -1590,7 +1679,7 @@ sub ip_iptype
 	
 	foreach ( sort { length($b) <=> length($a) } keys %IPv6ranges)
 	{
-		$ip =~ m/^$_/ and return $IPv6ranges{$_};
+		return ($IPv6ranges{$_}) if ($ip =~ m/^$_/);
 	};
 
 	$ERROR = "Cannot determine type for $ip";
@@ -1608,7 +1697,7 @@ sub ip_check_prefix
 	my ($binip,$len,$ipversion) = (@_);
 	
 	# Check if len is longer than IP
-	$len > length($binip) and do
+	if ($len > length($binip))
 	{
 		$ERROR = "Prefix length $len is longer than IP address (".
 			length($binip).")";
@@ -1619,7 +1708,7 @@ sub ip_check_prefix
 	my $rest = substr ($binip,$len);
 
 	# Check if last part of the IP (len part) has only 0s	
-	$rest =~ /^0*$/ or do
+	unless ($rest =~ /^0*$/)
 	{
 		$ERROR = "Invalid prefix $binip/$len";
 		$ERRNO = 171;
@@ -1627,7 +1716,7 @@ sub ip_check_prefix
 	};
 	
 	# Check if prefix length is correct
-	length($rest) + $len == $IPLengths{$ipversion} or do
+	unless (length($rest) + $len == ip_iplengths($ipversion))
 	{
 		$ERROR = "Invalid prefix length /$len";
 		$ERRNO = 172;
@@ -1650,7 +1739,7 @@ sub ip_reverse
 {
 	my ($ip, $len, $ip_version ) = (@_);
 	
-	$ip_version or do
+	unless ($ip_version)
 	{
 		$ERROR = "Cannot determine IP version for $ip";
 		$ERRNO = 101;
@@ -1693,29 +1782,47 @@ sub ip_normalize
 		
 	my $ipversion;
 	
-	my ($len,$ip,$ip2);
+	my ($len,$ip,$ip2,$real_len,$first,$last,$curr_bin,$addcst,$clen);
 	
 	# Prefix
-	if ($data =~ m#/#)
+	if ($data =~ m!^(\S+?)(/\S+)$!)
 	{
-		($ip,$len) = ip_splitprefix ($data);
-		$ip or return;
+		($ip,$len) = ($1,$2);
+		
+		return unless ($ipversion = ip_get_version($ip));
+		return unless ($ip = ip_expand_address($ip,$ipversion));
+		return unless ($curr_bin = ip_iptobin($ip,$ipversion));
 
-		$ipversion = ip_get_version($ip) or return;
-	
-		# Return range
-		return ip_prefix_to_range ($ip,$len,$ipversion);
+		my $one = '0'x(ip_iplengths($ipversion) - 1).'1';
 
+		while ($len)
+		{
+			last unless ($len =~ s!^/(\d+)(\,|$)!!);
+			
+			$clen = $1;
+			$addcst = length($2) > 0;
+
+			return unless (ip_check_prefix($curr_bin,$clen,$ipversion));
+						
+			return unless ($curr_bin = ip_last_address_bin($curr_bin,$clen,$ipversion));
+				
+			if ($addcst)
+			{
+				return unless ($curr_bin = ip_binadd ($curr_bin,$one));
+			};
+		};	
+				
+		return ($ip,ip_bintoip($curr_bin,$ipversion));
 	}
 	# Range
 	elsif ($data =~ /^(.+?)\s*\-\s*(.+)$/)
 	{
 		($ip,$ip2) = ($1,$2);
 		
-		$ipversion = ip_get_version($ip) or return;
+		return unless ($ipversion = ip_get_version($ip));
 				
-		$ip =  ip_expand_address ($ip,$ipversion) or return;
-		$ip2 = ip_expand_address ($ip2,$ipversion) or return;
+		return unless ($ip =  ip_expand_address ($ip,$ipversion));
+		return unless ($ip2 = ip_expand_address ($ip2,$ipversion));
 				
 		return ($ip,$ip2);
 	}
@@ -1724,9 +1831,10 @@ sub ip_normalize
 	{
 		$ip = $data;
 		
-		$ipversion = ip_get_version($ip) or return;
+		return unless ($ipversion = ip_get_version($ip));
 
-		$ip = ip_expand_address ($ip,$ipversion) or return;
+		return unless ($ip = ip_expand_address ($ip,$ipversion));
+		
 		return $ip;
 	};
 };
@@ -1742,7 +1850,7 @@ sub ip_normal_range
 	
 	my ($ip1,$ip2) = ip_normalize ($data);
 	
-	$ip1 or return;
+	return unless ($ip1);
 	
 	$ip2 ||= $ip1;
 	
@@ -1762,7 +1870,7 @@ IP - Perl extension for manipulating IPv4/IPv6 addresses
 
   use Net::IP;
   
-  my $ip = new IP ('193.0.1/24') or die (Net::IP::Error());
+  my $ip = new Net::IP ('193.0.1/24') or die (Net::IP::Error());
   print ("IP  : ".$ip->ip()."\n");
   print ("Sho : ".$ip->short()."\n");
   print ("Bin : ".$ip->binip()."\n");
@@ -1805,7 +1913,7 @@ The new() function accepts IPv4 and IPv6 addresses:
 Optionnaly, the function can be passed the version of the IP. Otherwise, it
 tries to guess what the version is (see B<_is_ipv4()> and B<_is_ipv6()>).
 
-  $ip = new IP ('195/8',4); # Class A
+  $ip = new Net::IP ('195/8',4); # Class A
 
 =head1 OBJECT METHODS
 
@@ -1945,9 +2053,9 @@ and an IP object as arguments. It returns a boolean value.
 
 The operation can be one of:
 lt: less than (smaller than)
-lte: smaller or equal to
+le: smaller or equal to
 gt: greater than
-gte: greater or equal to
+ge: greater or equal to
 
 C<if ($ip-E<gt>bincomp('lt',$ip2) {...}>
 
@@ -1969,13 +2077,14 @@ C<my $total = $ip-E<gt>aggregate($ip2);>
 
 Check if two IP ranges/prefixes overlap each other. The value returned by the 
 function should be one of:
-     0  no overlap
-     1  ranges overlap
-    -1  range2 is included in range1
-    -2  range1 is included in range2
- undef  problem
+	$IP_PARTIAL_OVERLAP (ranges overlap) 
+	$IP_NO_OVERLAP      (no overlap)
+	$IP_A_IN_B_OVERLAP  (range1 includes range2)
+	$IP_B_IN_A_OVERLAP  (range2 includes range1)
+	$IP_IDENTICAL       (ranges are identical)
+	undef               (problem)
 
-C<if ($ip-E<gt>overlaps($ip2)==1) {...};>
+C<if ($ip-E<gt>overlaps($ip2)==$IP_A_IN_B_OVERLAPS) {...};>
 
 =head1 PROCEDURAL INTERFACE
 
@@ -2093,7 +2202,7 @@ Return the last binary address of a prefix.
     Params  : First binary IP, prefix length, IP version
     Returns : Binary IP
 
-C<$lastbin = ip_last_address_bin ($ip,$len,6);
+C<$lastbin = ip_last_address_bin ($ip,$len,6);>
 
 =head2 ip_splitprefix
 
@@ -2117,7 +2226,7 @@ C<($ip1,$ip2) = ip_prefix_to_range ($prefix,6);>
 =head2 ip_bincomp
 
 Compare binary Ips with <, >, <=, >=.
- Operators are lt(<), lte(<=), gt(>), and gte(>=) 
+ Operators are lt(<), le(<=), gt(>), and ge(>=) 
  
     Params  : First binary IP, operator, Last binary IP
     Returns : 1 (yes), 0 (no), or undef (problem)
@@ -2167,13 +2276,14 @@ C<$ip = ip_compress_adress ($ip);>
 Check if two ranges of IPs overlap.
 
     Params  : Four binary IPs (begin of range 1,end1,begin2,end2), IP version
-    Returns : 1    (ranges overlap) 
-              0    (no overlap)
-             -1    (range1 includes range2)
-             -2    (range2 includes range1)
-	     undef (problem)
+	$IP_PARTIAL_OVERLAP (ranges overlap) 
+	$IP_NO_OVERLAP      (no overlap)
+	$IP_A_IN_B_OVERLAP  (range1 includes range2)
+	$IP_B_IN_A_OVERLAP  (range2 includes range1)
+	$IP_IDENTICAL       (ranges are identical)
+	undef               (problem)
 
-C<ip_is_overlap($rb1,$re1,$rb2,$re2,4) and do {};>
+C<(ip_is_overlap($rb1,$re1,$rb2,$re2,4) eq $IP_OVERLAPS) and do {};>
 
 =head2 ip_get_embedded_ipv4
 
