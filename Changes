@@ -1,12 +1,18 @@
 Revision history for Perl extension Net::IP.
 
-1.18  Tue Jan 21 12:00:00 2003
+1.19  Fri Feb 14 11:00:00 2002
+	- Documentation fix
+	- Testsuite fix
+
+1.18  Thu Feb 13  17:00:00 2002
+	- Big thanks to Kazuyuki Maejima <maejima@mex.ad.jp>
 	- Changed definition of overlap constants
 	- overlap constants always exported
 	- set returns an IP object (instead of 1)
 	- added function last_int()
-	
-	
+	- added ++ operator overloading
+	- added IP::Authority check (Nigel Wetters <nigel.wetters@rivalsdm.com>)
+	- Makefile.PL bugfix
 
 
 1.16  Wed Dec 18 17:00:00 2002

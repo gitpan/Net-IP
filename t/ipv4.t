@@ -12,7 +12,7 @@ BEGIN {
 	};
 };
 
-my $numtests = 22;
+my $numtests = 21;
 
 # Create checker:
 my $T = typical ExtUtils::TBone;

@@ -34,7 +34,7 @@
 # To Do             :
 # Comments          : Based on ipv4pack.pm (Monica) and iplib.pm (Lee)
 #                     Math::BigInt is only loaded if int functions are used
-# $Id: IP.pm,v 1.19 2002/12/20 13:28:39 manuel Exp $
+# $Id: IP.pm,v 1.21 2003/02/14 09:39:14 manuel Exp $
 #------------------------------------------------------------------------------
 
 package Net::IP;
@@ -48,7 +48,7 @@ use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $ERROR $ERRNO
 	%IPv4ranges %IPv6ranges $useBigInt
 	$IP_NO_OVERLAP $IP_PARTIAL_OVERLAP $IP_A_IN_B_OVERLAP $IP_B_IN_A_OVERLAP $IP_IDENTICAL);
 
-$VERSION = '1.18';
+$VERSION = '1.19';
 
 require Exporter;
 
@@ -2306,10 +2306,9 @@ range of IP addresses:
 
   my $ip = new Net::IP ('195.45.6.7 - 195.45.6.19') || die;
   # Loop
-  while (++$ip)
-  {
+  do {
       print $ip->ip(), "\n";
-  }
+  } while (++$ip);
 
 
 
