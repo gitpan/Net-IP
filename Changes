@@ -1,5 +1,10 @@
 Revision history for Perl extension Net::IP.
 
+1.11  Tue May 28 15:00:00 2002
+	- added iptab script
+	- added new constructor (IP + size)
+	- added new options to ipcount
+
 1.01  Thu Feb 01 10:46:09 2001
 	- added option to create multi-prefix ranges (/16,/17)
 	- added a check on validity of prefixes

@@ -67,7 +67,7 @@ require Exporter;
 	PROC => [@EXPORT_OK],
       );
 
-$VERSION = '1.10';
+$VERSION = '1.11';
 
 # Definition of the Ranges for IPv4 IPs
 %IPv4ranges = (
@@ -258,7 +258,7 @@ sub print
 	
 	if ($self->{is_prefix})
 	{
-		return (sprintf ("%s/%s",$self->ip(),$self->prefixlen()));
+		return (sprintf ("%s/%s",$self->short(),$self->prefixlen()));
 	}
 	else
 	{
@@ -1767,7 +1767,7 @@ sub ip_reverse
 		# This takes the zone above if it's not exactly on a nibble
 		my $first_nibble_index = 32 - ( int ( $len / 4 ) );
 		return join '.', @result[$first_nibble_index..$#result],
-			 'ip6', 'int.';
+			 'ip6', 'arpa.';
 	};
 };
 
@@ -1824,6 +1824,24 @@ sub ip_normalize
 		return unless ($ip =  ip_expand_address ($ip,$ipversion));
 		return unless ($ip2 = ip_expand_address ($ip2,$ipversion));
 				
+		return ($ip,$ip2);
+	}
+	# IP + Number
+	elsif ($data =~ /^(.+?)\+(.+)$/)
+	{
+		($ip, $len)  = ($1, $2);
+				
+		return unless ($ipversion = ip_get_version($ip));
+		return unless ($ip =  ip_expand_address ($ip,$ipversion));
+
+		my ($bin_ip);
+		return unless ($bin_ip = ip_iptobin($ip,$ipversion));
+		
+		return unless ($len = ip_inttobin ($len, $ipversion));
+
+		return unless ($ip2 = ip_binadd ($bin_ip, $len));
+		return unless ($ip2 = ip_bintoip ($ip2, $ipversion));
+			
 		return ($ip,$ip2);
 	}
 	# Single IP
@@ -1905,6 +1923,10 @@ Or from a Classless Prefix (a /24 prefix is equivalent to a C class):
 Or from a range of addresses:
 
   $ip = new Net::IP ('20.34.101.207 - 201.3.9.99') || die ...
+  
+Or from a address plus a number:
+
+  $ip = new Net::IP ('20.34.10.0 + 255') || die ...
   
 The new() function accepts IPv4 and IPv6 addresses:
 
@@ -2000,6 +2022,12 @@ C<print ($ip-E<gt>mask());>
 Return the full prefix (ip+prefix length) in quad (standard) format.
 
 C<print ($ip-E<gt>prefix());>
+
+=head2 print
+
+Print the IP object (IP/Prefix or First - Last)
+
+C<print ($ip-E<gt>print());>
 
 =head2 intip
 

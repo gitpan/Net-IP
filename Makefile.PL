@@ -4,6 +4,6 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
     'NAME'	=> 'Net::IP',
     'VERSION_FROM' => 'IP.pm', # finds $VERSION
-    'EXE_FILES'         => [qw(ipcount)],
+    'EXE_FILES'         => [qw(ipcount iptab)],
     'INSTALLSCRIPT'     => '/usr/local/ncc/bin',
 );

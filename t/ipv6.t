@@ -8,7 +8,6 @@ BEGIN {
 		$math_bigint = 1;
 	};
 };
-
 my $numtests = 18;
 
 # Create checker:
@@ -28,9 +27,16 @@ $T->ok_eq ($ip->short(),'dead:beef::',$ip->error());
 $T->ok_eqnum ($ip->prefixlen(),48,$ip->error());
 $T->ok_eqnum ($ip->version(),6,$ip->error());
 $T->ok_eq ($ip->mask(),'ffff:ffff:ffff:0000:0000:0000:0000:0000',$ip->error());
-$T->ok_eqnum ($ip->intip(),295990755014133383690938178081940045824,$ip->error()) if $math_bigint;
+
+if ($math_bigint)
+{
+	my $n = new Math::BigInt ('295990755014133383690938178081940045824');
+
+	$T->ok_eqnum ($ip->intip(),$n,$ip->error());
+}
+
 $T->ok_eq ($ip->iptype(),'UNASSIGNED',$ip->error());
-$T->ok_eq ($ip->reverse_ip(),'0.0.0.0.f.e.e.b.d.a.e.d.ip6.int.',$ip->error());
+$T->ok_eq ($ip->reverse_ip(),'0.0.0.0.f.e.e.b.d.a.e.d.ip6.arpa.',$ip->error());
 $T->ok_eq ($ip->last_ip(),'dead:beef:0000:ffff:ffff:ffff:ffff:ffff',$ip->error());
 
 $ip->set('202.31.4/24',4);
