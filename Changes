@@ -1,10 +1,10 @@
 Revision history for Perl extension Net::IP.
 
-1.19  Fri Feb 14 11:00:00 2002
+1.19  Fri Feb 14 11:00:00 2003
 	- Documentation fix
 	- Testsuite fix
 
-1.18  Thu Feb 13  17:00:00 2002
+1.18  Thu Feb 13  17:00:00 2003
 	- Big thanks to Kazuyuki Maejima <maejima@mex.ad.jp>
 	- Changed definition of overlap constants
 	- overlap constants always exported

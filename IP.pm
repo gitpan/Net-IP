@@ -34,7 +34,7 @@
 # To Do             :
 # Comments          : Based on ipv4pack.pm (Monica) and iplib.pm (Lee)
 #                     Math::BigInt is only loaded if int functions are used
-# $Id: IP.pm,v 1.21 2003/02/14 09:39:14 manuel Exp $
+# $Id: IP.pm,v 1.23 2003/02/18 16:13:01 manuel Exp $
 #------------------------------------------------------------------------------
 
 package Net::IP;
@@ -48,7 +48,7 @@ use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $ERROR $ERRNO
 	%IPv4ranges %IPv6ranges $useBigInt
 	$IP_NO_OVERLAP $IP_PARTIAL_OVERLAP $IP_A_IN_B_OVERLAP $IP_B_IN_A_OVERLAP $IP_IDENTICAL);
 
-$VERSION = '1.19';
+$VERSION = '1.20';
 
 require Exporter;
 
@@ -406,11 +406,6 @@ sub binmask
 sub size
 {
 	my $self = shift;
-	
-	if ($self->is_prefix()) {
-		# Size is 2 ^^ (number_of_bits_in_IP - actual_number_of_bits)
-		return (2**(ip_iplengths($self->{ipversion}) - $self->{prefixlen}));
-	};
 		
 	my $compl;
 		
@@ -544,7 +539,7 @@ sub short
  		$r = ip_compress_v4_prefix ($self->ip(), $self->prefixlen());
  	}
 	
-	if (!$r)
+	if (!defined($r))
 	{
 		$self->{error} = $ERROR;
 		$self->{errno} = $ERRNO;
