@@ -34,7 +34,7 @@
 # To Do             :
 # Comments          : Based on ipv4pack.pm (Monica) and iplib.pm (Lee)
 #                     Math::BigInt is only loaded if int functions are used
-# $Id: IP.pm,v 1.13 2002/05/28 14:11:05 manuel Exp $
+# $Id: IP.pm,v 1.15 2002/10/15 11:06:55 manuel Exp $
 #------------------------------------------------------------------------------
 
 package Net::IP;
@@ -67,7 +67,7 @@ require Exporter;
 	PROC => [@EXPORT_OK],
       );
 
-$VERSION = '1.12';
+$VERSION = '1.13';
 
 # Definition of the Ranges for IPv4 IPs
 %IPv4ranges = (

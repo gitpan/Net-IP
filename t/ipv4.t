@@ -26,7 +26,7 @@ $ip = new Net::IP('195.114.80/24',4);
 $T->ok (defined($ip),$Net::IP::Error);
 $T->ok_eq ($ip->binip(),'11000011011100100101000000000000',$ip->error());
 $T->ok_eq ($ip->ip(),'195.114.80.0',$ip->error());
-$T->ok_eq ($ip->short(),'195.114.80.0',$ip->error());
+$T->ok_eq ($ip->short(),'195.114.80/24',$ip->error());
 $T->ok_eqnum ($ip->prefixlen(),24,$ip->error());
 $T->ok_eqnum ($ip->version(),4,$ip->error());
 $T->ok_eqnum ($ip->size(),256,$ip->error());

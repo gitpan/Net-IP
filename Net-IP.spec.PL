@@ -1,4 +1,4 @@
-#$Revision: 1.6 $
+#$Revision: 1.1 $
 do 'IP.pm';
 
 open (X, ">Net-IP.spec") || die "$!\n";

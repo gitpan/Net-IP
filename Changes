@@ -1,6 +1,9 @@
 Revision history for Perl extension Net::IP.
 
 
+1.13  Tue Oct 15 12:00:00 2002
+	- Bugfix in t/ipv4.t
+
 1.12  Tue Oct 15 10:00:00 2002
 	- This revision is authored by Peter Hatch
 	- Changed "IP -" to "Net::IP -" in NAME section of IP.pm so MakeMaker could grab
