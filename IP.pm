@@ -34,26 +34,30 @@
 # To Do             :
 # Comments          : Based on ipv4pack.pm (Monica) and iplib.pm (Lee)
 #                     Math::BigInt is only loaded if int functions are used
-# $Id: IP.pm,v 1.17 2002/10/23 12:40:31 manuel Exp $
+# $Id: IP.pm,v 1.19 2002/12/20 13:28:39 manuel Exp $
 #------------------------------------------------------------------------------
 
 package Net::IP;
 
 use strict;
 
+
+
 # Global Variables definition
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $ERROR $ERRNO 
 	%IPv4ranges %IPv6ranges $useBigInt
 	$IP_NO_OVERLAP $IP_PARTIAL_OVERLAP $IP_A_IN_B_OVERLAP $IP_B_IN_A_OVERLAP $IP_IDENTICAL);
 
-$VERSION = '1.16';
+$VERSION = '1.18';
 
 require Exporter;
 
 @ISA = qw(Exporter);
 
-# Functions exported in all cases
-@EXPORT = qw(&Error &Errno);
+# Functions and variables exported in all cases
+@EXPORT = qw(&Error &Errno
+	$IP_NO_OVERLAP $IP_PARTIAL_OVERLAP $IP_A_IN_B_OVERLAP $IP_B_IN_A_OVERLAP $IP_IDENTICAL
+);
 
 # Functions exported on demand (with :PROC)
 @EXPORT_OK = qw(&Error &Errno &ip_iptobin &ip_bintoip &ip_bintoint &ip_inttobin 
@@ -63,7 +67,8 @@ require Exporter;
 	&ip_range_to_prefix &ip_compress_address &ip_is_overlap 
 	&ip_get_embedded_ipv4 &ip_aggregate &ip_iptype &ip_check_prefix 
 	&ip_reverse &ip_normalize &ip_normal_range &ip_iplengths
-	$IP_NO_OVERLAP $IP_PARTIAL_OVERLAP $IP_A_IN_B_OVERLAP $IP_B_IN_A_OVERLAP $IP_IDENTICAL);
+	$IP_NO_OVERLAP $IP_PARTIAL_OVERLAP $IP_A_IN_B_OVERLAP $IP_B_IN_A_OVERLAP $IP_IDENTICAL
+);
 
 %EXPORT_TAGS = (
 	PROC => [@EXPORT_OK],
@@ -128,6 +133,51 @@ $IP_B_IN_A_OVERLAP = 	-2;
 $IP_IDENTICAL = 	-3;
 
 
+# ----------------------------------------------------------
+# OVERLOADING
+
+use overload  (
+	'+'	=> 'ip_add_num',
+	'bool'	=> sub {@_},
+);
+
+
+#------------------------------------------------------------------------------
+# Subroutine ip_num_add
+# Purpose           : Add an integer to an IP
+# Params            : Number to add
+# Returns           : New object or undef
+# Note              : Used by overloading - returns undef when 
+#                     the end of the range is reached
+
+sub ip_add_num
+{
+	my $self = shift;
+    	
+	my ($value) = @_;
+	
+	my $ip = $self->intip + $value;
+	
+	my $last = $self->last_int;
+	
+	# Reached the end of the range ?
+	if ($ip > $self->last_int)
+	{
+		return;
+	}
+	
+	my $newb = ip_inttobin($ip, $self->version);
+	$newb = ip_bintoip($newb,$self->version);
+	
+	my $newe = ip_inttobin($last, $self->version);
+	$newe = ip_bintoip($newe,$self->version);
+	
+	my $new = new Net::IP ("$newb - $newe");
+	
+	return ($new);
+}
+
+
 # -----------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
@@ -144,9 +194,12 @@ sub new
 	my $self = {};
 		
 	bless ($self,$class);
-
+		
 	# Pass everything to set()		
-	return unless ($self->set ($data, $ipversion));
+	unless ($self->set ($data, $ipversion))
+	{	
+		return;
+	}
 			
 	return $self;
 };
@@ -174,7 +227,7 @@ sub set
  	# Those variables are set when the object methods are called
 	# We need to reset everything
 	for (qw(ipversion errno prefixlen binmask reverse_ip last_ip iptype
-		binip error ip intformat mask last_bin prefix is_prefix))
+		binip error ip intformat mask last_bin last_int prefix is_prefix))
 	{
 		delete ($self->{$_});
 	};
@@ -249,7 +302,7 @@ sub set
 		};	
 	};
 		
-	return (1);
+	return ($self);
 };	
 
 sub print
@@ -590,6 +643,27 @@ sub last_bin
 	return ($last);
 };
 
+
+#------------------------------------------------------------------------------
+# Subroutine last_int
+# Purpose           : Get the last IP of a range in integer format
+# Returns           : Last integer IP or undef (failure)
+sub last_int
+{
+	my ($self) = shift;
+	
+	return($self->{last_int}) if defined ($self->{last_int});
+
+	my $last_bin = $self->last_bin() or return;
+	
+	my $last_int = ip_bintoint($last_bin, $self->version()) or return;
+	
+	$self->{last_int} = $last_int;
+	
+	return ($last_int);
+}
+
+
 #------------------------------------------------------------------------------
 # Subroutine last_ip
 # Purpose           : Get the last IP of a prefix in IP format
@@ -709,8 +783,8 @@ sub aggregate
 # Params            : Prefix to compare
 # Returns           : $NO_OVERLAP         (no overlap)
 #                     $IP_PARTIAL_OVERLAP (overlap)
-#                     $IP_A_IN_B_OVERLAP  (range2 is included in range1)
-#                     $IP_B_IN_A_OVERLAP  (range1 is included in range2)
+#                     $IP_A_IN_B_OVERLAP  (range1 is included in range2)
+#                     $IP_B_IN_A_OVERLAP  (range2 is included in range1)
 #                     $IP_IDENTICAL       (range1 == range2) 
 #                     or undef (problem)
 
@@ -730,6 +804,35 @@ sub overlaps
 	
 	return ($r);
 };
+
+
+#------------------------------------------------------------------------------
+# Subroutine auth
+# Purpose           : Return Authority information from IP::Authority
+# Params            : IP object
+# Returns           : Authority Source
+
+sub auth
+{
+	my ($self) = shift;
+	
+	return($self->{auth}) if defined ($self->{auth});
+
+	my $auth = ip_auth($self->ip, $self->version);
+
+	if (!$auth)
+	{
+		$self->{error} = $ERROR;
+		$self->{errno} = $ERRNO;
+		return;
+	};
+	
+	$self->{auth} = $auth;
+	
+	return ($self->{auth});
+}
+
+
 
 #------------------------------ PROCEDURAL INTERFACE --------------------------
 #------------------------------------------------------------------------------
@@ -1441,6 +1544,9 @@ sub ip_range_to_prefix
 		if ($1) {
 			$nbits = length ($1);
 		}
+		else {
+			$nbits = 0;
+		}
 		
 		do
 		{
@@ -1541,8 +1647,8 @@ sub ip_compress_address
 # Params            : Four binary IPs (begin of range 1,end1,begin2,end2)
 # Returns           : $NO_OVERLAP         (no overlap)
 #                     $IP_PARTIAL_OVERLAP (overlap)
-#                     $IP_A_IN_B_OVERLAP  (range2 is included in range1)
-#                     $IP_B_IN_A_OVERLAP  (range1 is included in range2)
+#                     $IP_A_IN_B_OVERLAP  (range1 is included in range2)
+#                     $IP_B_IN_A_OVERLAP  (range2 is included in range1)
 #                     $IP_IDENTICAL       (range1 == range2) 
 #                     or undef (problem)
 
@@ -1908,6 +2014,44 @@ sub ip_normal_range
 };
 
 
+#------------------------------------------------------------------------------
+# Subroutine ip_auth
+# Purpose           : Get Authority information from IP::Authority Module
+# Comments          : Requires IP::Authority
+# Params            : IP, length of prefix
+# Returns           : Reverse name or undef (error)
+sub ip_auth
+{
+	my ($ip, $ip_version ) = (@_);
+	
+	unless ($ip_version)
+	{
+		$ERROR = "Cannot determine IP version for $ip";
+		$ERRNO = 101;
+		die;
+		return;
+	};
+
+	if ($ip_version != 4)
+	{
+	
+		$ERROR = "Cannot get auth information: Not an IPv4 address";
+		$ERRNO = 308;
+		die;
+		return;	
+	}
+	
+	require IP::Authority;
+	
+	my $reg = new IP::Authority;
+
+	return ($reg->inet_atoauth($ip));
+}
+	
+	
+	
+
+
 1;
 
 __END__
@@ -2089,17 +2233,23 @@ Return the reverse IP for a given IP address (in.addr. format).
 
 C<print ($ip-E<gt>reserve_ip());>
 
+=head2 last_ip
+
+Return the last IP of a prefix/range in quad format.
+
+C<print ($ip-E<gt>last_ip());>
+
 =head2 last_bin
 
 Return the last IP of a prefix/range in binary format.
 
 C<print ($ip-E<gt>last_bin());>
 
-=head2 last_ip
+=head2 last_int
 
-Return the last IP of a prefix/range in quad format.
+Return the last IP of a prefix/range in integer format.
 
-C<print ($ip-E<gt>last_ip());>
+C<print ($ip-E<gt>last_int());>
 
 =head2 find_prefixes
 
@@ -2141,12 +2291,39 @@ Check if two IP ranges/prefixes overlap each other. The value returned by the
 function should be one of:
 	$IP_PARTIAL_OVERLAP (ranges overlap) 
 	$IP_NO_OVERLAP      (no overlap)
-	$IP_A_IN_B_OVERLAP  (range1 includes range2)
-	$IP_B_IN_A_OVERLAP  (range2 includes range1)
+	$IP_A_IN_B_OVERLAP  (range2 contains range1)
+	$IP_B_IN_A_OVERLAP  (range1 contains range2)
 	$IP_IDENTICAL       (ranges are identical)
 	undef               (problem)
 
 C<if ($ip-E<gt>overlaps($ip2)==$IP_A_IN_B_OVERLAPS) {...};>
+
+
+=head2 looping
+
+The C<+> operator is overloaded in order to allow looping though a whole 
+range of IP addresses:
+
+  my $ip = new Net::IP ('195.45.6.7 - 195.45.6.19') || die;
+  # Loop
+  while (++$ip)
+  {
+      print $ip->ip(), "\n";
+  }
+
+
+
+The ++ operator returns undef when the last address of the range is reached.
+
+
+=head2 auth
+
+Return IP authority information from the IP::Authority module
+
+C<$auth = ip->auth ();>
+
+Note: IPv4 only
+
 
 =head1 PROCEDURAL INTERFACE
 
@@ -2351,8 +2528,8 @@ Check if two ranges of IPs overlap.
     Params  : Four binary IPs (begin of range 1,end1,begin2,end2), IP version
 	$IP_PARTIAL_OVERLAP (ranges overlap) 
 	$IP_NO_OVERLAP      (no overlap)
-	$IP_A_IN_B_OVERLAP  (range1 includes range2)
-	$IP_B_IN_A_OVERLAP  (range2 includes range1)
+	$IP_A_IN_B_OVERLAP  (range2 contains range1)
+	$IP_B_IN_A_OVERLAP  (range1 contains range2)
 	$IP_IDENTICAL       (ranges are identical)
 	undef               (problem)
 
@@ -2425,6 +2602,18 @@ Normalize data to a range/prefix of IP addresses
 
 C<($ip1,$ip2) = ip_normalize ($data);>
 
+=head2 ip_auth
+
+Return IP authority information from the IP::Authority module
+
+    Params  : IP, version
+    Returns : Auth info (RI for RIPE, AR for ARIN, etc)
+
+C<$auth = ip_auth ($ip,4);>
+
+Note: IPv4 only
+
+
 =head1 BUGS
 
 The Math::BigInt library is needed for functions that use integers. These are
@@ -2445,6 +2634,6 @@ ipv4pack.pm, iplib.pm, iplibncc.pm.
 
 =head1 SEE ALSO
 
-perl(1).
+perl(1), IP::Authority
 
 =cut

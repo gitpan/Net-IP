@@ -1,15 +1,18 @@
 use lib "./t";
 use ExtUtils::TBone;
-use Net::IP qw(:PROC);
 
 BEGIN {
+	use lib '..';
+	
+	use Net::IP qw(:PROC);
+
 	if (eval (require Math::BigInt))
 	{
 		$math_bigint = 1;
 	};
 };
 
-my $numtests = 21;
+my $numtests = 22;
 
 # Create checker:
 my $T = typical ExtUtils::TBone;

@@ -1,5 +1,14 @@
 Revision history for Perl extension Net::IP.
 
+1.18  Tue Jan 21 12:00:00 2003
+	- Changed definition of overlap constants
+	- overlap constants always exported
+	- set returns an IP object (instead of 1)
+	- added function last_int()
+	
+	
+
+
 1.16  Wed Dec 18 17:00:00 2002
 	- Small Bugfixes
 	- Documentation Modifications (by fliptop AT peacecomputers.com)
