@@ -15,7 +15,7 @@ Basically, it's an IP address mini-calculator, it can calculate the number of
 IP addresses in a prefix or all the prefixes contained in a given range.
 
 All bug reports and suggestions for improvemenets should be sent to 
-Manuel Valente <manuel@ripe.net>.
+Manuel Valente <mvalente@idealx.com>.
 
 All files contained in this installation are Copyright (c) 1999-2000
 RIPE-NCC unless otherwise specified. All rights reserved.

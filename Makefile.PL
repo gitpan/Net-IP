@@ -24,7 +24,7 @@ $PARAM{'dist'} = {
 };
 
 $PARAM{'ABSTRACT_FROM'}	= 'IP.pm';
-$PARAM{'AUTHOR'}	= 'Manuel Valente <manuel@ripe.net>';
+$PARAM{'AUTHOR'}	= 'Manuel Valente <mvalente@idealx.com>';
 
 
 WriteMakefile(
