@@ -34,7 +34,7 @@
 # To Do             :
 # Comments          : Based on ipv4pack.pm (Monica) and iplib.pm (Lee)
 #                     Math::BigInt is only loaded if int functions are used
-# $Id: IP.pm,v 1.23 2003/02/18 16:13:01 manuel Exp $
+# $Id: IP.pm,v 1.24 2003/04/09 12:58:14 manuel Exp $
 #------------------------------------------------------------------------------
 
 package Net::IP;
@@ -48,7 +48,7 @@ use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $ERROR $ERRNO
 	%IPv4ranges %IPv6ranges $useBigInt
 	$IP_NO_OVERLAP $IP_PARTIAL_OVERLAP $IP_A_IN_B_OVERLAP $IP_B_IN_A_OVERLAP $IP_IDENTICAL);
 
-$VERSION = '1.20';
+$VERSION = '1.22';
 
 require Exporter;
 
@@ -66,7 +66,8 @@ require Exporter;
 	&ip_is_valid_mask &ip_bincomp &ip_binadd &ip_get_prefix_length 
 	&ip_range_to_prefix &ip_compress_address &ip_is_overlap 
 	&ip_get_embedded_ipv4 &ip_aggregate &ip_iptype &ip_check_prefix 
-	&ip_reverse &ip_normalize &ip_normal_range &ip_iplengths
+	&ip_reverse &ip_reverse_list &ip_normalize &ip_normal_range 
+	&ip_iplengths
 	$IP_NO_OVERLAP $IP_PARTIAL_OVERLAP $IP_A_IN_B_OVERLAP $IP_B_IN_A_OVERLAP $IP_IDENTICAL
 );
 
@@ -194,7 +195,7 @@ sub new
 	my $self = {};
 		
 	bless ($self,$class);
-		
+
 	# Pass everything to set()		
 	unless ($self->set ($data, $ipversion))
 	{	
@@ -406,9 +407,9 @@ sub binmask
 sub size
 {
 	my $self = shift;
-		
+	
 	my $compl;
-		
+			
 	# Calculate 2's complement of first IP
 	foreach (split '',$self->binip())
 	{
@@ -416,15 +417,15 @@ sub size
 	};
 		
 	my $one = ('0' x (length($compl)-1)).'1';
-	
+
 	return unless ($compl = ip_binadd ($compl,$one));
-	
+
 	# Add complemented IP to final IP (same as substraction)
 	my $result = ip_binadd ($self->last_bin(),$compl) or return;
-	
+
 	# Transform into integer
-	return unless ($result = ip_bintoint ($result,$self->version()));
-			
+	return unless defined($result = ip_bintoint ($result,$self->version()));
+					
 	return ($result + 1);
 };
 
@@ -1863,13 +1864,19 @@ sub ip_check_prefix
 };
 
 #------------------------------------------------------------------------------
-# Subroutine _reverse
+# Subroutine ip_reverse
 # Purpose           : Get a reverse name from a prefix
 # Comments          : From Lee's iplib.pm
 # Params            : IP, length of prefix
 # Returns           : Reverse name or undef (error)
 sub ip_reverse
 {
+	# Deal with maybe called as an object.
+	my $maybeself = shift;
+	if( ! ref( $maybeself ) ){
+		unshift( @_, $maybeself );
+	}
+
 	my ($ip, $len, $ip_version ) = (@_);
 	
 	unless ($ip_version)
@@ -1902,6 +1909,103 @@ sub ip_reverse
 		return join '.', @result[$first_nibble_index..$#result],
 			 'ip6', 'arpa.';
 	};
+};
+
+#------------------------------------------------------------------------------
+# Subroutine ip_reverse_list
+# Purpose           : Return a list of 'best' reverse matches for a given range
+# Comments          : Bruce's hackery.  Rather classful for IPv4
+#                   : ipv6 boundary stuff is 'fuzzy'.
+# Params            : IP, length of prefix, ip_version, @ipv6_del_boundaries
+# Returns           : @list of in-addr.arpa or ip6.arpas
+sub ip_reverse_list
+{
+
+	my $maybeself = shift;
+	if( ! ref( $maybeself ) ){
+		unshift( @_, $maybeself );
+	}
+
+	my ($ip, $len, $ip_version, @bestmatches ) = (@_);
+
+	unless ($ip_version)
+	{
+		$ERROR = "Cannot determine IP version for $ip";
+		$ERRNO = 101;
+		return;
+	};
+
+	my @retarray = ();
+
+	if ( $ip_version == 4 ) 
+	{
+
+		# Reverse stuff is byte-bounded.
+		my @quads =  split /\./, $ip;
+
+		my @cando = ( 8, 16, 24 );
+		my $suffix = "in-addr.arpa";
+
+		my $start = undef;
+		my $end = undef;
+
+		# Want a funky way of doing this.
+		my $loop = 0;
+		while( $loop < scalar( @cando ) ){
+			my $boundary = $cando[$loop];
+			if( $len <= $boundary && ! defined( $start ) && $len != 0 ){
+				# Assign start.
+				$start = $quads[$loop];
+
+				# Assign suffix.
+				my $tloop = 0;
+				while( $tloop < $loop  ){
+					$suffix = $quads[$tloop] . "." . $suffix;
+					$tloop++;
+				}
+
+				# Assign end.
+				my $tip = Net::IP->new( $ip . "/" . $len );
+				my @endquad = split( /\./, $tip->last_ip() );
+				$end = $endquad[$tloop];
+			}
+			$loop++;
+		}
+
+		if( defined( $start ) && defined( $end ) ){
+			$loop = $start;
+			while( $loop <= $end ){
+				push @retarray, $loop . "." . $suffix;
+				$loop++;
+			}
+		}elsif( $len == 0 ){
+			# Special case.
+			push @retarray, $suffix;
+		}
+	}
+	elsif ( $ip_version == 6 ) 
+	{
+
+		# Doing the same trick in v6 space is somewhat harder,
+		# particularly if you toss in arbitary delegation points.
+		# Not too keen on counting in nibbles.  Just copy the 
+		# previous code for now.
+		my @rev_groups = reverse split /:/, $ip;
+		my @result;
+        
+		foreach ( @rev_groups ) 
+		{
+			my @revhex = reverse split //;
+			push @result, @revhex;
+		};
+        
+		# This takes the zone above if it's not exactly on a nibble
+		my $first_nibble_index = 32 - ( int ( $len / 4 ) );
+		return join '.', @result[$first_nibble_index..$#result],
+			 'ip6', 'arpa.';
+	};
+
+	return( @retarray );
 };
 
 #------------------------------------------------------------------------------
@@ -2585,7 +2689,16 @@ Get a reverse name from a prefix
     Params  : IP, length of prefix, IP version
     Returns : Reverse name or undef (error)
 
-C<$reverse = ip_reverse ($ip);>
+C<$reverse = ip_reverse ($ip, $prefix, $version);>
+
+=head2 ip_reverse_list
+
+Get a list of reverse names from a prefix ('best' match)
+
+    Params  : IP, length of prefix, IP version, @ipv6_del_boundaries (opt)
+    Returns : @list of reverse names or undef (error)
+
+C<@reverse = ip_reverse_list ($ip, $prefix, $version);>
 
 =head2 ip_normalize
 
