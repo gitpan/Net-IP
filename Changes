@@ -1,5 +1,12 @@
 Revision history for Perl extension Net::IP.
 
+1.16  Wed Dec 18 17:00:00 2002
+	- Small Bugfixes
+	- Documentation Modifications (by fliptop AT peacecomputers.com)
+
+
+1.15  Wed Oct 23 15:00:00 2002
+	- Bugfix release
 
 1.14  Fri Oct 18 15:00:00 2002
 	- Bugfix release

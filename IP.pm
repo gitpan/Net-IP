@@ -34,7 +34,7 @@
 # To Do             :
 # Comments          : Based on ipv4pack.pm (Monica) and iplib.pm (Lee)
 #                     Math::BigInt is only loaded if int functions are used
-# $Id: IP.pm,v 1.16 2002/10/18 12:59:12 manuel Exp $
+# $Id: IP.pm,v 1.17 2002/10/23 12:40:31 manuel Exp $
 #------------------------------------------------------------------------------
 
 package Net::IP;
@@ -46,7 +46,7 @@ use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $ERROR $ERRNO
 	%IPv4ranges %IPv6ranges $useBigInt
 	$IP_NO_OVERLAP $IP_PARTIAL_OVERLAP $IP_A_IN_B_OVERLAP $IP_B_IN_A_OVERLAP $IP_IDENTICAL);
 
-$VERSION = '1.15';
+$VERSION = '1.16';
 
 require Exporter;
 
@@ -1437,7 +1437,10 @@ sub ip_range_to_prefix
 		# Find all 0s at the end
 		$binip =~ m/(0+)$/;
 		# nbits = nb of 0 bits
-		$nbits = length ($1);
+		
+		if ($1) {
+			$nbits = length ($1);
+		}
 		
 		do
 		{
@@ -2209,14 +2212,14 @@ is not compliant.
 
 C<$binip = ip_inttobin ($bigint);>
 
-=head2 ip_get_type
+=head2 ip_get_version
 
 Try to guess the IP version of an IP address.
 
     Params  : IP address
-    Returns : 4, 6, 0(unable to determine)
+    Returns : 4, 6, undef(unable to determine)
 
-C<$version = ip_get_type ($ip)>
+C<$version = ip_get_version ($ip)>
 
 =head2 ip_is_ipv4
 
@@ -2339,7 +2342,7 @@ Compress an IPv6 address. Just returns the IP if it is an IPv4.
     Params  : IP, IP version
     Returns : Compressed IP or undef (problem)
 
-C<$ip = ip_compress_adress ($ip);>
+C<$ip = ip_compress_adress ($ip, $version);>
 
 =head2 ip_is_overlap
 
