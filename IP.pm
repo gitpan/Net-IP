@@ -34,7 +34,7 @@
 # To Do             :
 # Comments          : Based on ipv4pack.pm (Monica) and iplib.pm (Lee)
 #                     Math::BigInt is only loaded if int functions are used
-# $Id: IP.pm,v 1.12 2001/04/04 11:12:17 manuel Exp $
+# $Id: IP.pm,v 1.13 2002/05/28 14:11:05 manuel Exp $
 #------------------------------------------------------------------------------
 
 package Net::IP;
@@ -67,7 +67,7 @@ require Exporter;
 	PROC => [@EXPORT_OK],
       );
 
-$VERSION = '1.11';
+$VERSION = '1.12';
 
 # Definition of the Ranges for IPv4 IPs
 %IPv4ranges = (
@@ -474,13 +474,22 @@ sub mask
 
 #------------------------------------------------------------------------------
 # Subroutine short
-# Purpose           : Get the short format of an IP address
+# Purpose           : Get the short format of an IP address or a Prefix
 # Returns           : short format IP or undef
 sub short
 {
 	my $self = shift;
 	
-	my $r = ip_compress_address ($self->ip(),$self->version());
+	my $r;
+	
+ 	if ($self->version == 6)
+ 	{
+ 		$r = ip_compress_address ($self->ip(),$self->version());
+ 	}
+ 	else
+ 	{
+ 		$r = ip_compress_v4_prefix ($self->ip(), $self->prefixlen());
+ 	}
 	
 	if (!$r)
 	{
@@ -1458,6 +1467,26 @@ sub ip_range_to_prefix
 };
 
 #------------------------------------------------------------------------------
+# Subroutine ip_compress_v4_prefix
+# Purpose           : Compress an IPv4 Prefix
+# Params            : IP, Prefix length
+# Returns           : Compressed IP - ie: 194.5/16
+sub ip_compress_v4_prefix
+{
+	my ($ip,$len) = @_;
+
+	my @quads = split /\./, $ip;
+	
+	my $qlen = int(($len-1)/8);
+	
+	$qlen = 0 if ($qlen < 0);
+	
+	my $newip = join '.',@quads[0..$qlen];
+	
+	return ("$newip/$len");	
+}
+
+#------------------------------------------------------------------------------
 # Subroutine ip_compress_address
 # Purpose           : Compress an IPv6 address
 # Params            : IP, IP version
@@ -1882,7 +1911,7 @@ __END__
 
 =head1 NAME
 
-IP - Perl extension for manipulating IPv4/IPv6 addresses
+Net::IP - Perl extension for manipulating IPv4/IPv6 addresses
 
 =head1 SYNOPSIS
 
@@ -2037,8 +2066,10 @@ C<print ($ip-E<gt>intip());>
 
 =head2 short
 
-Return the IP in short format: IPv4 addresses are unchanged, but IPv6 addresses
-can be written in the '::' format (ex: ab32:f000::).
+Return the IP in short format:  
+	IPv4 addresses: 194.5/16
+	IPv6 addresses: ab32:f000::
+
 
 C<print ($ip-E<gt>short());>
 
@@ -2289,6 +2320,17 @@ Return all prefixes between two IPs.
 The prefixes returned have the form q.q.q.q/nn.
 
 C<@prefix = ip_range_to_prefix ($ip1,$ip2,6);>
+
+
+=head2 ip_compress_v4_prefix
+
+Compress an IPv4 Prefix.
+
+    Params  : IP, Prefix length
+    Returns : Compressed Prefix
+
+C<$ip = ip_compress_v4_prefix ($ip, $len);>
+
 
 =head2 ip_compress_address
 

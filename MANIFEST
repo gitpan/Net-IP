@@ -9,3 +9,5 @@ t/ipv6.t
 t/ExtUtils/TBone.pm
 README
 COPYING
+Net-IP.spec.PL
+

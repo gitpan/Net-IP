@@ -1,5 +1,18 @@
 Revision history for Perl extension Net::IP.
 
+
+1.12  Tue Oct 15 10:00:00 2002
+	- This revision is authored by Peter Hatch
+	- Changed "IP -" to "Net::IP -" in NAME section of IP.pm so MakeMaker could grab
+	the abstract
+	- Updated Makefile.PL to include AUTHOR, ABSTRACT_FROM, PL_FILES tags
+	- Added Linux RPM spec file (generated from Net-IP.spec.PL).  If package
+	is built by RPM, the script files are put into %{_prefix}/bin instead of
+	into /usr/local/ncc/bin...
+	- Changed the first line in the ipcount and iptab scripts so that MM_Unix::fixin
+	can insert correct sharpbangs
+        - Added function ip_compress_v4_prefix ()
+
 1.11  Tue May 28 15:00:00 2002
 	- added iptab script
 	- added new constructor (IP + size)

@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl5.6.0 -w
+#!perl -w
 
 # Copyright (c) 2000                            RIPE NCC
 #
@@ -35,10 +35,8 @@
 # Problems          :
 # To Do             :
 # Comments          : 
-# $Id: ipcount,v 1.1 2001/04/04 11:12:33 manuel Exp $
+# $Id: ipcount,v 1.2 2002/05/28 14:11:06 manuel Exp $
 #------------------------------------------------------------------------------
-
-BEGIN {@INC = ('/home/manuel/work/hm-tools',@INC) };
 
 use strict;
 use Math::BigInt;
