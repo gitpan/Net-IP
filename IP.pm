@@ -1,4 +1,4 @@
-# Copyright (c) 1999 - 2000                           RIPE NCC
+# Copyright (c) 1999 - 2002                           RIPE NCC
 #
 # All Rights Reserved
 #
@@ -25,8 +25,8 @@
 # Date              : 19991124
 # Description       : 
 # Language Version  : Perl 5
-# OSs Tested        : BSDI 3.1
-# Command Line      :
+# OSs Tested        : BSDI 3.1 - Linux
+# Command Line      : ipcount
 # Input Files       :
 # Output Files      :
 # External Programs : Math::BigInt.pm
@@ -45,6 +45,8 @@ use strict;
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $ERROR $ERRNO 
 	%IPv4ranges %IPv6ranges $useBigInt
 	$IP_NO_OVERLAP $IP_PARTIAL_OVERLAP $IP_A_IN_B_OVERLAP $IP_B_IN_A_OVERLAP $IP_IDENTICAL);
+
+$VERSION = '1.15';
 
 require Exporter;
 
@@ -66,8 +68,6 @@ require Exporter;
 %EXPORT_TAGS = (
 	PROC => [@EXPORT_OK],
       );
-
-$VERSION = '1.14';
 
 # Definition of the Ranges for IPv4 IPs
 %IPv4ranges = (
@@ -258,7 +258,7 @@ sub print
 	
 	if ($self->{is_prefix})
 	{
-		return ($self->short());
+		return ($self->short() . '/' . $self->prefixlen());
 	}
 	else
 	{
@@ -1470,7 +1470,7 @@ sub ip_range_to_prefix
 # Subroutine ip_compress_v4_prefix
 # Purpose           : Compress an IPv4 Prefix
 # Params            : IP, Prefix length
-# Returns           : Compressed IP - ie: 194.5/16
+# Returns           : Compressed IP - ie: 194.5
 sub ip_compress_v4_prefix
 {
 	my ($ip,$len) = @_;
@@ -1483,7 +1483,7 @@ sub ip_compress_v4_prefix
 	
 	my $newip = join '.',@quads[0..$qlen];
 	
-	return ("$newip/$len");	
+	return ($newip);	
 }
 
 #------------------------------------------------------------------------------
