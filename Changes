@@ -1,5 +1,12 @@
 Revision history for Perl extension Net::IP.
 
+1.22  Mon May 26 11:54:00 2005
+	- Big Thanks to Achim Adam <achim.adam AT univie.ac.at>
+	- Removed 5.008 dependency
+	- Added fix for trailing zeros on reverse IPv4 addresses 
+	- Updated 'special' ranges for Ipv4 and IPv6
+		
+
 1.19  Fri Feb 14 11:00:00 2003
 	- Documentation fix
 	- Testsuite fix

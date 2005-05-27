@@ -35,7 +35,7 @@ if ($math_bigint)
 	$T->ok_eqnum ($ip->intip(),$n,$ip->error());
 }
 
-$T->ok_eq ($ip->iptype(),'UNASSIGNED',$ip->error());
+$T->ok_eq ($ip->iptype(),'RESERVED',$ip->error());
 $T->ok_eq ($ip->reverse_ip(),'0.0.0.0.f.e.e.b.d.a.e.d.ip6.arpa.',$ip->error());
 $T->ok_eq ($ip->last_ip(),'dead:beef:0000:ffff:ffff:ffff:ffff:ffff',$ip->error());
 

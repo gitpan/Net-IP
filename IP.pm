@@ -42,13 +42,12 @@ package Net::IP;
 use strict;
 
 
-
 # Global Variables definition
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $ERROR $ERRNO 
 	%IPv4ranges %IPv6ranges $useBigInt
 	$IP_NO_OVERLAP $IP_PARTIAL_OVERLAP $IP_A_IN_B_OVERLAP $IP_B_IN_A_OVERLAP $IP_IDENTICAL);
 
-$VERSION = '1.21';
+$VERSION = '1.22';
 
 require Exporter;
 
@@ -76,61 +75,58 @@ require Exporter;
 
 # Definition of the Ranges for IPv4 IPs
 %IPv4ranges = (
-	'00000000'		=> 'PRIVATE',  # 0/8
-	'00001010'		=> 'PRIVATE',  # 10/8
-	'01111111'		=> 'PRIVATE',  # 127.0/8
-	'101011000001'		=> 'PRIVATE',  # 172.16/12
-	'1100000010101000'	=> 'PRIVATE',  # 192.168/16
-	'11011111'		=> 'RESERVED', # 223/8
-	'111'			=> 'RESERVED'  # 224/3
+	'00000000'                 => 'PRIVATE',  # 0/8
+	'00001010'                 => 'PRIVATE',  # 10/8
+	'01111111'                 => 'PRIVATE',  # 127.0/8
+	'101011000001'             => 'PRIVATE',  # 172.16/12
+	'1100000010101000'         => 'PRIVATE',  # 192.168/16
+	'1010100111111110'         => 'RESERVED', # 169.254/16
+	'110000000000000000000010' => 'RESERVED', # 192.0.2/24
+	'1110'                     => 'RESERVED', # 224/4
+	'11110'                    => 'RESERVED', # 240/5
+	'11111'                    => 'RESERVED', # 248/5
 );
+
 
 # Definition of the Ranges for Ipv6 IPs
 %IPv6ranges = (
-    '00000000'              => 'RESERVED',       # ::/8
-    '00000001'              => 'UNASSIGNED',     # 100::/8
+    '00000000'                         => 'RESERVED',             # ::/8
+    '00000001'                         => 'RESERVED',             # 0100::/8
+    '0000001'                          => 'RESERVED',             # 0200::/7
+	'000001'                           => 'RESERVED',             # 0400::/6
+	'00001'                            => 'RESERVED',             # 0800::/5
+    '0001'                             => 'RESERVED',             # 1000::/4
+    '001'                              => 'GLOBAL-UNICAST',       # 2000::/3
+    '010'                              => 'RESERVED',             # 4000::/3              
+    '011'                              => 'RESERVED',             # 6000::/3
+    '100'                              => 'RESERVED',             # 8000::/3
+    '101'                              => 'RESERVED',             # A000::/3
+    '110'                              => 'RESERVED',             # C000::/3
+    '1110'                             => 'RESERVED',             # E000::/4
+    '11110'                            => 'RESERVED',             # F000::/5
+    '111110'                           => 'RESERVED',             # F800::/6
+	'1111101'                          => 'RESERVED',             # FA00::/7
+    '1111110'                          => 'UNIQUE-LOCAL-UNICAST', # FC00::/7
+    '111111100'                        => 'RESERVED',             # FE00::/9
+    '1111111010'                       => 'LINK-LOCAL-UNICAST',   # FE80::/10
+    '1111111011'                       => 'RESERVED',             # FEC0::/10
+    '11111111'                         => 'MULTICAST',            # FF00::/8
+	'00100000000000010000110110111000' => 'RESERVED',             # 2001:DB8::/32
+	
+    '0' x 96                => 'IPV4COMP',             # ::/96
+    ('0' x 80).('1' x 16)   => 'IPV4MAP',              # ::FFFF:0:0/96
 
-    '0000001'               => 'NSAP',           # 200::/7
-    '0000010'               => 'IPX',            # 400::/7
-
-    '0000011'               => 'UNASSIGNED',     # 600::/7   
-    '00001'                 => 'UNASSIGNED',     # 800::/5
-    '0001'                  => 'UNASSIGNED',     # 1000::/4
-
-    '001'                   => 'UNASSIGNED',     # 2000::/3
-    '0010000000000001'      => 'UNICAST-SUB',    # 2001::/16
-
-    '010'                   => 'GLOBAL-UNICAST', # 4000::/3              
-    '011'                   => 'UNASSIGNED',     # 6000::/3
-    '100'                   => 'GEO-UNICAST',    # 8000::/3
-    '101'                   => 'UNASSIGNED',     # A000::/3
-    '110'                   => 'UNASSIGNED',     # C000::/3
-    
-    '1110'                  => 'UNASSIGNED',     # E000::/4
-    '11110'                 => 'UNASSIGNED',     # F000::/5
-    '111110'                => 'UNASSIGNED',     # F800::/6
-    '1111110'               => 'UNASSIGNED',     # FC00::/7
-    '111111100'             => 'UNASSIGNED',     # FE00::/9
-
-    '1111111010'            => 'LINKLOCAL',      # FE80::/10
-    '1111111011'            => 'SITELOCAL',      # FEC0::/10
-
-    '11111111'              => 'MULTICAST',      # FF00::/8
-
-    '0' x 96                => 'IPV4COMP',       # ::/96
-    ('0' x 80).('1' x 16)   => 'IPV4MAP',        # ::FFFF:0:0/96
-
-    '0' x 128               => 'UNSPECIFIED',    # ::/128
-    ('0' x 127).'1'         => 'LOOPBACK'        # ::1/128
+    '0' x 128               => 'UNSPECIFIED',          # ::/128
+    ('0' x 127).'1'         => 'LOOPBACK'              # ::1/128
 
 );
 
 # Overlap constants
-$IP_NO_OVERLAP = 	 0;
-$IP_PARTIAL_OVERLAP = 	 1;
-$IP_A_IN_B_OVERLAP = 	-1;
-$IP_B_IN_A_OVERLAP = 	-2;
-$IP_IDENTICAL = 	-3;
+$IP_NO_OVERLAP      =  0;
+$IP_PARTIAL_OVERLAP =  1;
+$IP_A_IN_B_OVERLAP  = -1;
+$IP_B_IN_A_OVERLAP  = -2;
+$IP_IDENTICAL       = -3;
 
 
 # ----------------------------------------------------------
@@ -1883,7 +1879,15 @@ sub ip_reverse
 	{
 		my @quads =  split /\./, $ip;
 		my $no_quads = ( $len / 8 );
-		my @reverse_groups = reverse @quads[0..($no_quads-1)];
+		
+		my @reverse_groups;
+		
+		foreach my $qn (reverse @quads[0..($no_quads-1)]) {
+			print "Quad: $qn\n";
+			push (@reverse_groups, $qn + 1 - 1);
+			print "Quad: $qn\n";
+		}
+		
 		return join '.', @reverse_groups, 'in-addr', 'arpa.';
 	}
 	elsif ( $ip_version == 6 ) 
