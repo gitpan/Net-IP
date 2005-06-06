@@ -1,5 +1,13 @@
 Revision history for Perl extension Net::IP.
 
+1.23 Mon Jun 06 12:00:00 2005
+	- Thanks to Achim Adam <achim.adam AT univie.ac.at>
+	- Thanks to Malte S. Stretz <mss AT msquadrat.de>
+	- Thanks to Ville Skytta <ville.skytta AT iki.fi>
+	- Bugfixes in ip_reverse
+	- Bugfix in ip_range_to_prefix for /31 subnets
+
+
 1.22  Mon May 26 11:54:00 2005
 	- Big Thanks to Achim Adam <achim.adam AT univie.ac.at>
 	- Removed 5.008 dependency

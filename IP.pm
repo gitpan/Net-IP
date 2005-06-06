@@ -47,7 +47,7 @@ use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $ERROR $ERRNO
 	%IPv4ranges %IPv6ranges $useBigInt
 	$IP_NO_OVERLAP $IP_PARTIAL_OVERLAP $IP_A_IN_B_OVERLAP $IP_B_IN_A_OVERLAP $IP_IDENTICAL);
 
-$VERSION = '1.22';
+$VERSION = '1.23';
 
 require Exporter;
 
@@ -1167,14 +1167,21 @@ sub ip_expand_address
 		$ERROR = "Cannot determine IP version for $ip";
 		$ERRNO = 101;
 		return;
-	};
+	}
 	
 	# v4 : add .0 for missing quads
 	if ($ip_version == 4)
-	{
-		my $n = ($ip =~ tr/\./\./);
-		return ($ip.('.0'x(3-$n)));
-	};
+	{		
+		my @quads = split /\./, $ip;
+		
+		my @clean_quads = (0,0,0,0);
+		
+		foreach my $q (reverse @quads) {
+			unshift (@clean_quads, $q + 1 - 1);
+		}
+		
+		return (join '.', @clean_quads[0..3]);
+	}
 	
 	# Keep track of ::
 	$ip =~ s/::/:!:/;
@@ -1529,10 +1536,8 @@ sub ip_range_to_prefix
 	while (ip_bincomp ($binip,'le',$endbinip) == 1)
 	{
 		# Find all 0s at the end
-		$binip =~ m/(0+)$/;
-		# nbits = nb of 0 bits
-		
-		if ($1) {
+		if ($binip =~ m/(0+)$/) {
+			# nbits = nb of 0 bits
 			$nbits = length ($1);
 		}
 		else {
@@ -1859,15 +1864,16 @@ sub ip_check_prefix
 };
 
 #------------------------------------------------------------------------------
-# Subroutine _reverse
+# Subroutine ip_reverse
 # Purpose           : Get a reverse name from a prefix
 # Comments          : From Lee's iplib.pm
-# Params            : IP, length of prefix
+# Params            : IP, length of prefix, IP version
 # Returns           : Reverse name or undef (error)
 sub ip_reverse
 {
 	my ($ip, $len, $ip_version ) = (@_);
-	
+
+	$ip_version ||= ip_get_version($ip);
 	unless ($ip_version)
 	{
 		$ERROR = "Cannot determine IP version for $ip";
@@ -1880,15 +1886,13 @@ sub ip_reverse
 		my @quads =  split /\./, $ip;
 		my $no_quads = ( $len / 8 );
 		
-		my @reverse_groups;
+		my @reverse_quads = reverse @quads;
 		
-		foreach my $qn (reverse @quads[0..($no_quads-1)]) {
-			print "Quad: $qn\n";
-			push (@reverse_groups, $qn + 1 - 1);
-			print "Quad: $qn\n";
+		while (@reverse_quads and $reverse_quads[0] == 0) {
+			shift(@reverse_quads);
 		}
-		
-		return join '.', @reverse_groups, 'in-addr', 'arpa.';
+	
+		return join '.', @reverse_quads, 'in-addr', 'arpa.';
 	}
 	elsif ( $ip_version == 6 ) 
 	{
@@ -1902,7 +1906,7 @@ sub ip_reverse
 		};
         
 		# This takes the zone above if it's not exactly on a nibble
-		my $first_nibble_index = 32 - ( int ( $len / 4 ) );
+		my $first_nibble_index = $len ? 32 - ( int ( $len / 4 ) ) : 0;
 		return join '.', @result[$first_nibble_index..$#result],
 			 'ip6', 'arpa.';
 	};

@@ -12,7 +12,7 @@ BEGIN {
 	};
 };
 
-my $numtests = 21;
+my $numtests = 23;
 
 # Create checker:
 my $T = typical ExtUtils::TBone;
@@ -60,8 +60,12 @@ $ip2 = new Net::IP('133.44.255.255');
 $T->ok_eqnum ($ip->bincomp('gt',$ip2),1,$ip->error());
 
 $ip = new Net::IP('133.44.255.255-133.45.0.42');
-
 $T->ok_eq (($ip->find_prefixes())[3],'133.45.0.40/31',$ip->error());
+
+$ip = new Net::IP('192.168.2.254-192.168.2.255');
+my @prefixes = $ip->find_prefixes();
+$T->ok_eqnum (scalar(@prefixes), 1);
+$T->ok_eq ($prefixes[0],'192.168.2.254/31',$ip->error());
 
 $ip->set('201.33.128.0/22');
 $ip2->set('201.33.129.0/24');
