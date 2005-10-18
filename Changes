@@ -1,5 +1,11 @@
 Revision history for Perl extension Net::IP.
 
+1.24 Tue Oct 18 12:00:00 2005
+	- Thanks to Frederic Schutz <schutz AT mathgen.ch>
+	- Bugfix in overlaps function
+	- Updated Makefile
+	- ran perltidy on the code
+
 1.23 Mon Jun 06 12:00:00 2005
 	- Thanks to Achim Adam <achim.adam AT univie.ac.at>
 	- Thanks to Malte S. Stretz <mss AT msquadrat.de>

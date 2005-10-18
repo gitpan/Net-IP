@@ -23,8 +23,9 @@ $PARAM{'dist'} = {
 };
 
 $PARAM{'ABSTRACT_FROM'}	= 'IP.pm';
-$PARAM{'AUTHOR'}	= 'Manuel Valente <mvalente@idealx.com>';
+$PARAM{'AUTHOR'}	= 'Manuel Valente <manuel.valente@gmail.com>';
 
+$PARAM{'clean'} = {FILES => "Net-IP.spec"};
 
 WriteMakefile(
     'NAME'		=> 'Net::IP',
