@@ -40,13 +40,14 @@
 package Net::IP;
 
 use strict;
+use Math::BigInt;
 
 # Global Variables definition
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $ERROR $ERRNO
   %IPv4ranges %IPv6ranges $useBigInt
   $IP_NO_OVERLAP $IP_PARTIAL_OVERLAP $IP_A_IN_B_OVERLAP $IP_B_IN_A_OVERLAP $IP_IDENTICAL);
 
-$VERSION = '1.24';
+$VERSION = '1.25';
 
 require Exporter;
 
@@ -144,9 +145,9 @@ sub ip_add_num {
     my $self = shift;
 
     my ($value) = @_;
-
+	
     my $ip = $self->intip + $value;
-
+	
     my $last = $self->last_int;
 
     # Reached the end of the range ?
@@ -387,26 +388,12 @@ sub binmask {
 sub size {
     my $self = shift;
 
-    my $compl;
-
-    # Calculate 2's complement of first IP
-    foreach (split '', $self->binip()) {
-        $compl .= $_ == 1 ? '0' : '1';
-    }
-
-    my $one = ('0' x (length($compl) - 1)) . '1';
-
-    return unless ($compl = ip_binadd($compl, $one));
-
-    # Add complemented IP to final IP (same as substraction)
-    my $result = ip_binadd($self->last_bin(), $compl) or return;
-
-    # Transform into integer
-    return unless ($result = ip_bintoint($result, $self->version()));
-
-    return ($result + 1);
-}
-
+	my $size = new Math::BigInt($self->last_int);
+	$size->badd(1);
+	
+	$size->bsub($self->intip);
+}	
+	
 # All the following functions work the same way: the method is just a frontend
 # to the real function. When the real function is called, the output is cached
 # so that next time the same function is called,the frontend function directly
@@ -432,6 +419,33 @@ sub intip {
     $self->{intformat} = $int;
 
     return ($int);
+}
+
+#------------------------------------------------------------------------------
+# Subroutine hexip
+# Purpose           : Return the IP in hex format
+# Returns           : hex string
+sub hexip {
+	my $self = shift;
+	return $self->{'hexformat'} if(defined($self->{'hexformat'}));
+	$self->{'hexformat'} = $self->intip->as_hex();
+	return $self->{'hexformat'};
+}
+
+#------------------------------------------------------------------------------
+# Subroutine hexmask
+# Purpose           : Return the mask back in hex
+# Returns           : hex string
+sub hexmask {
+	my $self = shift;
+
+	return $self->{hexmask} if(defined($self->{hexmask}));
+	
+	my $intmask = ip_bintoint($self->binmask);
+	
+	$self->{'hexmask'} = $intmask->as_hex();
+	
+	return ($self->{'hexmask'});
 }
 
 #------------------------------------------------------------------------------
@@ -873,10 +887,9 @@ sub ip_bintoip {
 sub ip_bintoint {
     my $binip = shift;
 
-    require Math::BigInt;
-
     # $n is the increment, $dec is the returned value
     my ($n, $dec) = (Math::BigInt->new(1), Math::BigInt->new(0));
+
 
     # Reverse the bit string
     foreach (reverse(split '', $binip)) {
@@ -899,7 +912,6 @@ sub ip_bintoint {
 # Params            : BigInt, IP version
 # Returns           : bit string
 sub ip_inttobin {
-    require Math::BigInt;
 
     my $dec = Math::BigInt->new(shift);
 
@@ -912,31 +924,18 @@ sub ip_inttobin {
         return;
     }
 
-    # Number of bits depends on IP version
-    my $maxn = ip_iplengths($ip_version);
+	my $binip = $dec->as_bin();
+	$binip =~ s/^0b//;
 
-    my ($n, $binip);
+    # Define normal size for address
+    my $len = ip_iplengths($ip_version);
+	
+    # Prepend 0s if result is less than normal size
+    $binip = '0' x ($len - length($binip)) . $binip;
 
-    # Set warnings off, use integers only (loathe Math::BigInt)
-    local $^W = 0;
-    use integer;
+	
+	return $binip;
 
-    for ($n = 0 ; $n < $maxn ; $n++) {
-
-        # Bit is 1 if $dec cannot be divided by 2
-        $binip .= $dec % 2;
-
-        # Divide by 2, without fractional part
-        $dec /= 2;
-    }
-
-    no integer;
-
-    # Strip + signs
-    $binip =~ s/\+//g;
-
-    # Reverse bit string
-    return scalar reverse $binip;
 }
 
 #------------------------------------------------------------------------------
@@ -1689,7 +1688,7 @@ sub ip_aggregate {
 }
 
 #------------------------------------------------------------------------------
-# Subroutine _iptype
+# Subroutine ip_iptype
 # Purpose           : Return the type of an IP (Public, Private, Reserved)
 # Params            : IP to test, IP version
 # Returns           : type or undef (invalid)
@@ -1851,7 +1850,7 @@ sub ip_normalize {
     }
 
     # IP + Number
-    elsif ($data =~ /^(.+?)\+(.+)$/) {
+    elsif ($data =~ /^(.+?)\s+\+\s+(.+)$/) {
         ($ip, $len) = ($1, $2);
 
         return unless ($ipversion = ip_get_version($ip));
@@ -1967,7 +1966,7 @@ either B<IPv4> or B<IPv6> addresses transparently.
 A Net::IP object can be created from a single IP address:
   
   $ip = new Net::IP ('193.0.1.46') || die ...
-  
+
 Or from a Classless Prefix (a /24 prefix is equivalent to a C class):
 
   $ip = new Net::IP ('195.114.80/24') || die ...
@@ -2086,6 +2085,18 @@ C<print ($ip-E<gt>print());>
 Convert the IP in integer format and return it as a Math::BigInt object.
 
 C<print ($ip-E<gt>intip());>
+
+=head2 hexip
+
+Return the IP in hex format
+
+C<print ($ip-E<gt>hexip());>
+
+=head2 hexmask
+
+Return the mask in hex format
+
+C<print ($ip-E<gt>hexmask());>
 
 =head2 short
 

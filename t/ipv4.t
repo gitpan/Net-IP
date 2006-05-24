@@ -12,7 +12,7 @@ BEGIN {
 	};
 };
 
-my $numtests = 23;
+my $numtests = 26;
 
 # Create checker:
 my $T = typical ExtUtils::TBone;
@@ -30,6 +30,8 @@ $T->ok (defined($ip),$Net::IP::Error);
 $T->ok_eq ($ip->binip(),'11000011011100100101000000000000',$ip->error());
 $T->ok_eq ($ip->ip(),'195.114.80.0',$ip->error());
 $T->ok_eq ($ip->print(),'195.114.80/24',$ip->error());
+$T->ok_eq ($ip->hexip(),'0xc3725000',$ip->error());
+$T->ok_eq ($ip->hexmask(),'0xffffff00',$ip->error());
 $T->ok_eqnum ($ip->prefixlen(),24,$ip->error());
 $T->ok_eqnum ($ip->version(),4,$ip->error());
 $T->ok_eqnum ($ip->size(),256,$ip->error());
@@ -71,6 +73,9 @@ $ip->set('201.33.128.0/22');
 $ip2->set('201.33.129.0/24');
 
 $T->ok_eqnum ($ip->overlaps($ip2),$IP_B_IN_A_OVERLAP,$ip->error());
+
+$ip->set('192.168.0.3/32');
+$T->ok_eqnum ($ip->size,1,$ip->error());
 
 
 #------------------------------------------------------------------------------

@@ -8,7 +8,7 @@ BEGIN {
 		$math_bigint = 1;
 	};
 };
-my $numtests = 18;
+my $numtests = 20;
 
 # Create checker:
 my $T = typical ExtUtils::TBone;
@@ -24,6 +24,8 @@ $T->ok (defined($ip),$Net::IP::ERROR);
 $T->ok_eq ($ip->binip(),'11011110101011011011111011101111000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',$ip->error());
 $T->ok_eq ($ip->ip(),'dead:beef:0000:0000:0000:0000:0000:0000',$ip->error());
 $T->ok_eq ($ip->short(),'dead:beef::',$ip->error());
+$T->ok_eq ($ip->hexip(),'0xdeadbeef000000000000000000000000',$ip->error());
+$T->ok_eq ($ip->hexmask(),'0xffffffffffff00000000000000000000',$ip->error());
 $T->ok_eqnum ($ip->prefixlen(),48,$ip->error());
 $T->ok_eqnum ($ip->version(),6,$ip->error());
 $T->ok_eq ($ip->mask(),'ffff:ffff:ffff:0000:0000:0000:0000:0000',$ip->error());

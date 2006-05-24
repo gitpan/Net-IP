@@ -1,5 +1,9 @@
 Revision history for Perl extension Net::IP.
 
+1.25 Wed May 24 12:00:00 2006
+	- Math::BigInt is now mandatory
+	- Several bugfixes done
+
 1.24 Tue Oct 18 12:00:00 2005
 	- Thanks to Frederic Schutz <schutz AT mathgen.ch>
 	- Bugfix in overlaps function
