@@ -47,7 +47,7 @@ use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $ERROR $ERRNO
   %IPv4ranges %IPv6ranges $useBigInt
   $IP_NO_OVERLAP $IP_PARTIAL_OVERLAP $IP_A_IN_B_OVERLAP $IP_B_IN_A_OVERLAP $IP_IDENTICAL);
 
-$VERSION = '1.25';
+$VERSION = '1.26';
 
 require Exporter;
 
@@ -73,49 +73,55 @@ require Exporter;
 
 # Definition of the Ranges for IPv4 IPs
 %IPv4ranges = (
-    '00000000'                 => 'PRIVATE',     # 0/8
-    '00001010'                 => 'PRIVATE',     # 10/8
-    '01111111'                 => 'PRIVATE',     # 127.0/8
-    '101011000001'             => 'PRIVATE',     # 172.16/12
-    '1100000010101000'         => 'PRIVATE',     # 192.168/16
-    '1010100111111110'         => 'RESERVED',    # 169.254/16
-    '110000000000000000000010' => 'RESERVED',    # 192.0.2/24
-    '1110'                     => 'RESERVED',    # 224/4
-    '11110'                    => 'RESERVED',    # 240/5
-    '11111'                    => 'RESERVED',    # 248/5
+    '00000000'                         => 'PRIVATE',     # 0/8
+    '00001010'                         => 'PRIVATE',     # 10/8
+    '0110010001'                       => 'SHARED',      # 100.64/10
+    '01111111'                         => 'LOOPBACK',    # 127.0/8
+    '1010100111111110'                 => 'LINK-LOCAL',  # 169.254/16
+    '101011000001'                     => 'PRIVATE',     # 172.16/12
+    '110000000000000000000000'         => 'RESERVED',    # 192.0.0/24
+    '110000000000000000000010'         => 'TEST-NET',    # 192.0.2/24
+    '110000000101100001100011'         => '6TO4-RELAY',  # 192.88.99.0/24 
+    '1100000010101000'                 => 'PRIVATE',     # 192.168/16
+    '110001100001001'                  => 'RESERVED',    # 198.18/15
+    '110001100011001101100100'         => 'TEST-NET',    # 198.51.100/24
+    '110010110000000001110001'         => 'TEST-NET',    # 203.0.113/24
+    '1110'                             => 'MULTICAST',   # 224/4
+    '1111'                             => 'RESERVED',    # 240/4
+    '11111111111111111111111111111111' => 'BROADCAST',   # 255.255.255.255/32
 );
 
 # Definition of the Ranges for Ipv6 IPs
 %IPv6ranges = (
-    '00000000'   => 'RESERVED',                  # ::/8
-    '00000001'   => 'RESERVED',                  # 0100::/8
-    '0000001'    => 'RESERVED',                  # 0200::/7
-    '000001'     => 'RESERVED',                  # 0400::/6
-    '00001'      => 'RESERVED',                  # 0800::/5
-    '0001'       => 'RESERVED',                  # 1000::/4
-    '001'        => 'GLOBAL-UNICAST',            # 2000::/3
-    '010'        => 'RESERVED',                  # 4000::/3
-    '011'        => 'RESERVED',                  # 6000::/3
-    '100'        => 'RESERVED',                  # 8000::/3
-    '101'        => 'RESERVED',                  # A000::/3
-    '110'        => 'RESERVED',                  # C000::/3
-    '1110'       => 'RESERVED',                  # E000::/4
-    '11110'      => 'RESERVED',                  # F000::/5
-    '111110'     => 'RESERVED',                  # F800::/6
-    '1111101'    => 'RESERVED',                  # FA00::/7
-    '1111110'    => 'UNIQUE-LOCAL-UNICAST',      # FC00::/7
-    '111111100'  => 'RESERVED',                  # FE00::/9
-    '1111111010' => 'LINK-LOCAL-UNICAST',        # FE80::/10
-    '1111111011' => 'RESERVED',                  # FEC0::/10
-    '11111111'   => 'MULTICAST',                 # FF00::/8
-    '00100000000000010000110110111000' => 'RESERVED',    # 2001:DB8::/32
-
-    '0' x 96 => 'IPV4COMP',                              # ::/96
-    ('0' x 80) . ('1' x 16) => 'IPV4MAP',                # ::FFFF:0:0/96
-
-    '0' x 128         => 'UNSPECIFIED',                  # ::/128
-    ('0' x 127) . '1' => 'LOOPBACK'                      # ::1/128
-
+    '00000000'                                      => 'RESERVED',                  # ::/8
+    ('0' x 128)                                     => 'UNSPECIFIED',               # ::/128
+    ('0' x 127) . '1'                               => 'LOOPBACK',                  # ::1/128
+    ('0' x  80) . ('1' x 16)                        => 'IPV4MAP',                   # ::FFFF:0:0/96
+    '00000001'                                      => 'RESERVED',                  # 0100::/8
+    '0000000100000000' . ('0' x 48)                 => 'DISCARD',                   # 0100::/64
+    '0000001'                                       => 'RESERVED',                  # 0200::/7
+    '000001'                                        => 'RESERVED',                  # 0400::/6
+    '00001'                                         => 'RESERVED',                  # 0800::/5
+    '0001'                                          => 'RESERVED',                  # 1000::/4
+    '001'                                           => 'GLOBAL-UNICAST',            # 2000::/3
+    '0010000000000001' . ('0' x 16)                 => 'TEREDO',                    # 2001::/32
+    '00100000000000010000000000000010' . ('0' x 16) => 'BMWG',                      # 2001:0002::/48            
+    '00100000000000010000110110111000'              => 'DOCUMENTATION',             # 2001:DB8::/32
+    '0010000000000001000000000001'                  => 'ORCHID',                    # 2001:10::/28
+    '0010000000000010'                              => '6TO4',                      # 2002::/16
+    '010'                                           => 'RESERVED',                  # 4000::/3
+    '011'                                           => 'RESERVED',                  # 6000::/3
+    '100'                                           => 'RESERVED',                  # 8000::/3
+    '101'                                           => 'RESERVED',                  # A000::/3
+    '110'                                           => 'RESERVED',                  # C000::/3
+    '1110'                                          => 'RESERVED',                  # E000::/4
+    '11110'                                         => 'RESERVED',                  # F000::/5
+    '111110'                                        => 'RESERVED',                  # F800::/6
+    '1111110'                                       => 'UNIQUE-LOCAL-UNICAST',      # FC00::/7
+    '111111100'                                     => 'RESERVED',                  # FE00::/9
+    '1111111010'                                    => 'LINK-LOCAL-UNICAST',        # FE80::/10
+    '1111111011'                                    => 'RESERVED',                  # FEC0::/10
+    '11111111'                                      => 'MULTICAST',                 # FF00::/8
 );
 
 # Overlap constants
@@ -211,7 +217,7 @@ sub set {
     # We need to reset everything
     for (
         qw(ipversion errno prefixlen binmask reverse_ip last_ip iptype
-        binip error ip intformat mask last_bin last_int prefix is_prefix)
+        binip error ip intformat hexformat mask last_bin last_int prefix is_prefix)
       )
     {
         delete($self->{$_});
@@ -1024,7 +1030,7 @@ sub ip_is_ipv6 {
 
     # Count octets
     my $n = ($ip =~ tr/:/:/);
-    return (0) unless ($n > 0 and $n < 8);
+    return 0 unless ($n > 0 and $n < 8);
 
     # $k is a counter
     my $k;
@@ -1039,8 +1045,9 @@ sub ip_is_ipv6 {
         next if (/^[a-f\d]{1,4}$/i);
 
         # Last octet - is it IPv4 ?
-        if ($k == $n + 1) {
-            next if (ip_is_ipv4($_));
+        if ( ($k == $n + 1) && ip_is_ipv4($_) ) {
+            $n++; # ipv4 is two octets
+            next;
         }
 
         $ERROR = "Invalid IP address $ip";
@@ -1063,12 +1070,20 @@ sub ip_is_ipv6 {
     }
 
     # Does the IP address have more than one '::' pattern ?
-    if ($ip =~ s/:(?=:)//g > 1) {
+    if ($ip =~ s/:(?=:)/:/g > 1) {
         $ERROR = "Invalid address $ip (More than one :: pattern)";
         $ERRNO = 111;
         return 0;
     }
 
+    # number of octets
+    if ($n != 7 && $ip !~ /::/) {
+        $ERROR = "Invalid number of octets $ip";
+        $ERRNO = 112;
+        return 0;
+    }
+    
+    # valid IPv6 address
     return 1;
 }
 
@@ -1090,9 +1105,24 @@ sub ip_expand_address {
     if ($ip_version == 4) {
         my @quads = split /\./, $ip;
 
+        # check number of quads
+        if (scalar(@quads) > 4) {
+            $ERROR = "Not a valid IPv address $ip";
+            $ERRNO = 102;
+            return;
+        }
         my @clean_quads = (0, 0, 0, 0);
 
         foreach my $q (reverse @quads) {
+            
+            #check quad data
+            if ($q !~ m/^\d{1,3}$/) {
+                $ERROR = "Not a valid IPv4 address $ip";
+                $ERRNO = 102;
+                return;
+            }
+            
+            # build clean ipv4
             unshift(@clean_quads, $q + 1 - 1);
         }
 
@@ -1100,7 +1130,12 @@ sub ip_expand_address {
     }
 
     # Keep track of ::
-    $ip =~ s/::/:!:/;
+    my $num_of_double_colon = ($ip =~ s/::/:!:/g);
+    if ($num_of_double_colon > 1) {
+        $ERROR = "Too many :: in ip";
+        $ERRNO = 102;
+        return;
+    }
 
     # IP as an array
     my @ip = split /:/, $ip;
@@ -1118,10 +1153,7 @@ sub ip_expand_address {
             # Convert into hex
             # Keep the last two octets
 
-            $ip[$_] =
-              substr(
-                ip_bintoip(ip_iptobin(ip_expand_address($ip[$_], 4), 4), 6),
-                -9);
+            $ip[$_] = substr( ip_bintoip( ip_iptobin( ip_expand_address($ip[$_], 4), 4), 6), -9);
 
             # Has an error occured here ?
             return unless (defined($ip[$_]));
@@ -1506,6 +1538,9 @@ sub ip_compress_address {
     # Just return if IP is IPv4
     return ($ip) if ($ip_version == 4);
 
+    # already compressed addresses must be expanded first
+    $ip = ip_expand_address( $ip, $ip_version);
+    
     # Remove leading 0s: 0034 -> 34; 0000 -> 0
     $ip =~ s/
 	(^|:)        # Find beginning or ':' -> $1
@@ -1695,21 +1730,60 @@ sub ip_aggregate {
 sub ip_iptype {
     my ($ip, $ip_version) = @_;
 
-    # Find IP version
+    # handle known ip versions
+    return ip_iptypev4($ip) if $ip_version == 4;
+    return ip_iptypev6($ip) if $ip_version == 6;
 
-    if ($ip_version == 4) {
-        foreach (sort { length($b) <=> length($a) } keys %IPv4ranges) {
-            return ($IPv4ranges{$_}) if ($ip =~ m/^$_/);
-        }
+    # unsupported ip version
+    $ERROR = "IP version $ip not supported";
+    $ERRNO = 180;
+    return;
+}
 
-        # IP is public
-        return 'PUBLIC';
+#------------------------------------------------------------------------------
+# Subroutine ip_iptypev4
+# Purpose           : Return the type of an IP (Public, Private, Reserved)
+# Params            : IP to test, IP version
+# Returns           : type or undef (invalid)
+sub ip_iptypev4 {
+    my ($ip) = @_;
+
+    # check ip
+    if ($ip !~ m/^[01]{1,32}$/) {
+        $ERROR = "$ip is not a binary IPv4 address $ip";
+        $ERRNO = 180;
+        return;
+    }
+    
+    # see if IP is listed
+    foreach (sort { length($b) <=> length($a) } keys %IPv4ranges) {
+        return ($IPv4ranges{$_}) if ($ip =~ m/^$_/);
     }
 
+    # not listed means IP is public
+    return 'PUBLIC';
+}
+
+#------------------------------------------------------------------------------
+# Subroutine ip_iptypev6
+# Purpose           : Return the type of an IP (Public, Private, Reserved)
+# Params            : IP to test, IP version
+# Returns           : type or undef (invalid)
+sub ip_iptypev6 {
+    my ($ip) = @_;
+
+    # check ip
+    if ($ip !~ m/^[01]{1,128}$/) {
+        $ERROR = "$ip is not a binary IPv6 address";
+        $ERRNO = 180;
+        return;
+    }
+    
     foreach (sort { length($b) <=> length($a) } keys %IPv6ranges) {
         return ($IPv6ranges{$_}) if ($ip =~ m/^$_/);
     }
 
+    # How did we get here? All IPv6 addresses should match 
     $ERROR = "Cannot determine type for $ip";
     $ERRNO = 180;
     return;
@@ -1780,7 +1854,7 @@ sub ip_reverse {
         return join '.', @reverse_quads, 'in-addr', 'arpa.';
     }
     elsif ($ip_version == 6) {
-        my @rev_groups = reverse split /:/, $ip;
+        my @rev_groups = reverse split /:/, ip_expand_address($ip, 6);
         my @result;
 
         foreach (@rev_groups) {
@@ -1930,7 +2004,7 @@ sub ip_auth {
 1;
 
 __END__
-
+=encoding utf8
 =head1 NAME
 
 Net::IP - Perl extension for manipulating IPv4/IPv6 addresses
@@ -2110,7 +2184,7 @@ C<print ($ip-E<gt>short());>
 =head2 iptype
 
 Return the IP Type - this describes the type of an IP (Public, Private, 
-Reserved, etc.)
+Reserved, etc.) See procedural interface ip_iptype for more details.
 
 C<print ($ip-E<gt>iptype());>
 
@@ -2380,7 +2454,7 @@ C<$len = ip_get_prefix_length ($ip1,$ip2);>
 
 Return all prefixes between two IPs.
 
-    Params  : First IP, Last IP, IP version
+    Params  : First IP (binary format), Last IP (binary format), IP version
     Returns : List of Prefixes or undef (problem)
 
 The prefixes returned have the form q.q.q.q/nn.
@@ -2450,12 +2524,92 @@ Aggregate 2 ranges of binary IPs
 
 C<$prefix = ip_aggregate ($bip1,$eip1,$bip2,$eip2) || die ...>
 
+=head2 ip_iptypev4
+
+Return the type of an IPv4 address. 
+
+    Params:  binary IP
+    Returns: type as of the following table or undef (invalid ip)
+    
+See RFC 5735 and RFC 6598
+
+S<Address Block       Present Use                Reference>
+S<------------------------------------------------------------------->
+S<0.0.0.0/8           "This" Network             RFC 1122 PRIVATE>
+S<10.0.0.0/8          Private-Use Networks       RFC 1918 PRIVATE>
+S<100.64.0.0/10       CGN Shared Address Space   RFC 6598 SHARED>
+S<127.0.0.0/8         Loopback                   RFC 1122 LOOPBACK>
+S<169.254.0.0/16      Link Local                 RFC 3927 LINK-LOCAL>
+S<172.16.0.0/12       Private-Use Networks       RFC 1918 PRIVATE>
+S<192.0.0.0/24        IETF Protocol Assignments  RFC 5736 RESERVED>
+S<192.0.2.0/24        TEST-NET-1                 RFC 5737 TEST-NET>
+S<192.88.99.0/24      6to4 Relay Anycast         RFC 3068 6TO4-RELAY>
+S<192.168.0.0/16      Private-Use Networks       RFC 1918 PRIVATE>
+S<198.18.0.0/15       Network Interconnect>
+S<                    Device Benchmark Testing   RFC 2544 RESERVED>
+S<198.51.100.0/24     TEST-NET-2                 RFC 5737 TEST-NET>
+S<203.0.113.0/24      TEST-NET-3                 RFC 5737 TEST-NET>
+S<224.0.0.0/4         Multicast                  RFC 3171 MULTICAST>
+S<240.0.0.0/4         Reserved for Future Use    RFC 1112 RESERVED>
+S<255.255.255.255/32  Limited Broadcast          RFC 919  BROADCAST>
+S<                                               RFC 922>
+
+=head2 ip_iptypev6
+
+Return the type of an IPv6 address.
+
+    Params:  binary ip
+    Returns: type as of the following table or undef (invalid)
+    
+See L<IANA Internet Protocol Version 6 Address Space|http://www.iana.org/assignments/ipv6-address-space/ipv6-address-space.txt>  and L<IANA IPv6 Special Purpose Address Registry|http://www.iana.org/assignments/iana-ipv6-special-registry/iana-ipv6-special-registry.txt>
+
+ 
+S<Prefix      Allocation           Reference>
+S<------------------------------------------------------------->
+S<0000::/8    Reserved by IETF     [RFC4291] RESERVED>
+S<0100::/8    Reserved by IETF     [RFC4291] RESERVED>
+S<0200::/7    Reserved by IETF     [RFC4048] RESERVED>
+S<0400::/6    Reserved by IETF     [RFC4291] RESERVED>
+S<0800::/5    Reserved by IETF     [RFC4291] RESERVED>
+S<1000::/4    Reserved by IETF     [RFC4291] RESERVED>
+S<2000::/3    Global Unicast       [RFC4291] GLOBAL-UNICAST>
+S<4000::/3    Reserved by IETF     [RFC4291] RESERVED>
+S<6000::/3    Reserved by IETF     [RFC4291] RESERVED>
+S<8000::/3    Reserved by IETF     [RFC4291] RESERVED>
+S<A000::/3    Reserved by IETF     [RFC4291] RESERVED>
+S<C000::/3    Reserved by IETF     [RFC4291] RESERVED>
+S<E000::/4    Reserved by IETF     [RFC4291] RESERVED>
+S<F000::/5    Reserved by IETF     [RFC4291] RESERVED>
+S<F800::/6    Reserved by IETF     [RFC4291] RESERVED>
+S<FC00::/7    Unique Local Unicast [RFC4193] UNIQUE-LOCAL-UNICAST>
+S<FE00::/9    Reserved by IETF     [RFC4291] RESERVED>
+S<FE80::/10   Link Local Unicast   [RFC4291] LINK-LOCAL-UNICAST>
+S<FEC0::/10   Reserved by IETF     [RFC3879] RESERVED>
+S<FF00::/8    Multicast            [RFC4291] MULTICAST>
+
+   
+S<Prefix          Assignment            Reference>
+S<--------------------------------------------------------------------->
+S<::1/128         Loopback Address      [RFC4291] UNSPECIFIED>
+S<::/128          Unspecified Address   [RFC4291] LOOPBACK>
+S<::FFFF:0:0/96   IPv4-mapped Address   [RFC4291] IPV4MAP>
+S<0100::/64       Discard-Only Prefix   [RFC6666] DISCARD>
+S<2001:0000::/32  TEREDO                [RFC4380] TEREDO>
+S<2001:0002::/48  BMWG                  [RFC5180] BMWG>
+S<2001:db8::/32   Documentation Prefix  [RFC3849] DOCUMENTATION>
+S<2001:10::/28    ORCHID                [RFC4843] ORCHID>
+S<2002::/16       6to4                  [RFC3056] 6TO4>
+S<FC00::/7        Unique-Local          [RFC4193] UNIQUE-LOCAL-UNICAST>
+S<FE80::/10       Linked-Scoped Unicast [RFC4291] LINK-LOCAL-UNICAST>
+S<FF00::/8        Multicast             [RFC4291] MULTICAST>
+  
+
 =head2 ip_iptype
 
 Return the type of an IP (Public, Private, Reserved)
 
-    Params  : IP to test, IP version
-    Returns : type or undef (invalid)
+    Params  : Binary IP to test, IP version (defaults to 6)
+    Returns : type (see ip_iptypev4 and ip_iptypev6 for details) or undef (invalid)
 
 C<$type = ip_iptype ($ip);>    
 

@@ -17,8 +17,7 @@ IP addresses in a prefix or all the prefixes contained in a given range.
 All bug reports and suggestions for improvemenets should be sent to 
 Manuel Valente <manuel.valente@gmail.com>.
 
-All files contained in this installation are Copyright (c) 1999-2000
-RIPE-NCC unless otherwise specified. All rights reserved.
+Many thanks to Ulrich Wisser for the version 1.26.
 
 This library is free software; you can redistribute it and/or modify it under 
 the same terms as Perl itself.
